@@ -15,7 +15,7 @@
                 min-width: 100px;
                 text-align: left;
                 padding: 5px 12px;
-                font-family: monospace;
+                font-family: Courier;
                 background: #c9c9c9;
                 display: none;
                 opacity: 0;
@@ -23,6 +23,7 @@
                 border-radius: 3px;
             }
 		</style>
+		<script src="https://cdn.jsdelivr.net/npm/fuzzysort@2.0.4/fuzzysort.min.js"></script>
 		<script src="./chroma.js-master/chroma.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
         <script type="x-shader/x-fragment" id="vertexshader-token">
@@ -65,7 +66,6 @@
             import * as THREE from '/Polyglot/build/three.module.js';
             import { OrbitControls } from '/Polyglot/jsm/controls/OrbitControls.js';
             import { GUI } from '/Polyglot/jsm/libs/dat.gui.module.js';
-
             // #######################################################
             //      COPY N PASTE FROM THE WEB
             // #######################################################
@@ -121,10 +121,14 @@
             let originZ = 0;
 
             let raycaster, mouse = new THREE.Vector2(), INTERSECTED;
+			let raycasterMultiTokens = new THREE.Vector2();
             let originalHEX;
 
             var chooseAnchorController;
+			var zoomController;
             var anchorList = ["0: also_ADV", "918: right_NOUN"];
+			var searchAnchorList = ["0: also_ADV", "918: right_NOUN"];
+			var searchZoomList = ["0: also_ADV", "918: right_NOUN"];
             var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/"];
             let traceDataDirectory = "data/global_1/";
             var dataTraceController;
@@ -145,6 +149,7 @@
 			let particlePositions;
             let particleColor;
             let particleOpacity;
+			let allPoints;
             let topEdgeWeight = -1;
             let topNodeWeight = -1;
             let nodeWeightThreshold = 0; // Use this to filter out low weight nodes
@@ -169,6 +174,8 @@
             var farthestRGB = chroma('#293366');
             var originRGB = chroma([224, 144, 154]);
             var navigableRGB = chroma('#f7e968');
+			var zoomedPoint = chroma('#00ff22');
+			var zoomedTerm;
 
             var originalRGB = [0, 0, 0, 0]; // Different from OriginRGB, this is used to store original color for highlighting
 
@@ -185,6 +192,7 @@
             var opacityTuning = 0.4;
             var navigationMode = false;
 
+			// actual calls
             init();
             animate();
 
@@ -192,14 +200,22 @@
                 container = document.getElementById( 'container' );
 
                 raycaster = new THREE.Raycaster();
-                raycaster.params.Points.threshold = 3;
+                raycaster.params.Points.threshold = 0.8;
+				raycasterMultiTokens = new THREE.Raycaster();
+				raycasterMultiTokens.params.Points.threshold = 1.75;
+
+				// ALSO CHANGED THE POINTS THRESHOLD FOR BETTER POINT SELECTION WHEN ZOOMED IN
                 document.addEventListener('mousemove', onDocumentMouseMove, false);
 
                 scene = new THREE.Scene();
                 camera = new THREE.PerspectiveCamera(45, 
-                    window.innerWidth/window.innerHeight, 1, 4000);
+                    window.innerWidth/window.innerHeight, 5, 4000);
                 camera.position.z = 800;
-                
+				camera.near = 5;
+                // CHANGED NEAR PARAM TO MAKE RAY CASTING SMOOTHER DURING ZOOM
+
+
+
                 // REQUIRED - For camera control
 			    controls = new OrbitControls( camera, container );
 				//controls.minDistance = 0;
@@ -235,7 +251,9 @@
                     'displayMultiToken': false,
                     'alwaysAnchor': false,
                     'selectAnchor': "0: also_ADV",
-                    'selectTraceDataset': traceDataDirectory
+                    'selectTraceDataset': traceDataDirectory,
+					'textField': "",
+					'zoomPoint':""
                 };
 
                 gui.add(GUIparam, 'selectData', datasetList).name('Select Dataset').onChange(function(){
@@ -337,7 +355,13 @@
                                 var lines = file.split(/\r\n|\n/);
                                 lines = lines.slice(0, lines.length - 1);
                                 loadAnchor(lines);
+								var anchorName = particleData[INTERSECTED].id.toString() + ": " + particleData[INTERSECTED].name.toString();
+								anchorList.unshift(anchorName);
+								console.log("gonna add... " + anchorName);
+								console.log("dropdown should be " + anchorList);
+								updateDropdown(chooseAnchorController, anchorList);
                             }
+
 
                             var a = reader.readAsText(anchorData);
                         }); 
@@ -380,6 +404,8 @@
             }
 
             function raycastMouse() {
+				raycasterMultiTokens.setFromCamera( mouse, camera );
+				var intersectsMultiTokens = raycasterMultiTokens.intersectObject(pointCloud);
                 raycaster.setFromCamera( mouse, camera );
                 var intersects = raycaster.intersectObject(pointCloud);
 
@@ -430,13 +456,13 @@
                         // A hacky solution to display multiple tokens
                         var particle_mesg = "";
                         if (displayMultiToken){
-                            for (var i = 0; i < intersects.length; i++) {
-                                if (shiftPressed && availableIds[particleData[intersects[i].index].id]
+                            for (var i = 0; i < intersectsMultiTokens.length; i++) {
+                                if (shiftPressed && availableIds[particleData[intersectsMultiTokens[i].index].id]
                                     || !shiftPressed){
-                                    if (particleWeight[intersects[i].index] >= nodeWeightThreshold &&
-                                        particleConnectionWeight[intersects[i].index]>= connWeightThreshold){
+                                    if (particleWeight[intersectsMultiTokens[i].index] >= nodeWeightThreshold &&
+                                        particleConnectionWeight[intersectsMultiTokens[i].index]>= connWeightThreshold){
 
-                                        particle_mesg += "{" + particleData[intersects[i].index].name + "}\n";
+                                        particle_mesg += "{" + particleData[intersectsMultiTokens[i].index].name + "}\n";
                                     }
                                 }
                             }
@@ -524,7 +550,7 @@
                         lines = lines.slice(0, lines.length - 1);
                         
                         // Important initialization steps
-                        originAttr = eval(lines[0]);
+                        originAttr = lines[0]/1;
                         // ===================
 
                         loadMetaMain(lines);
@@ -539,7 +565,7 @@
                                 lines = lines.slice(0, lines.length - 1);
 
                                 loadFullData(lines);
-                                    
+
                                 // 3. Load anchor points
                                 console.log(data_dir + originAttr.toString() +".txt");
                                 getFileObject(data_dir + originAttr.toString() +".txt", function (anchorData) {
@@ -568,18 +594,81 @@
                                         var str = "<option value='" + anchorList[i] + "'>" + anchorList[i] + "</option>";
                                         innerHTMLStr += str;        
                                     }
-                                    
-                                    if (innerHTMLStr != "") chooseAnchorController.domElement.children[0].innerHTML = innerHTMLStr;
-                                }
-                                else {
-                                    chooseAnchorController = gui.add(GUIparam, 'selectAnchor', anchorList).name('Select Anchor').onChange(function(){
-                                        var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
 
-                                        console.log("LOADING " + id.toString());
-                                        
+                                    if (innerHTMLStr != "") chooseAnchorController.domElement.children[0].innerHTML = innerHTMLStr;
+								}
+                                else {
+									gui.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+										console.log(searchedTerm);
+										console.log("current anchor list", anchorList);
+										const anchorResults = fuzzysort.go(searchedTerm, anchorList, {limit: 5, all: true, allowTypo: true});
+										const zoomResults = fuzzysort.go(searchedTerm, allPoints, {limit: 7, all: true, allowTypo: true});
+										searchAnchorList = anchorResults.map(x => x.target);
+										searchZoomList = zoomResults.map(x => x.target);
+										gui.remove(chooseAnchorController);
+										gui.remove(zoomController);
+										if (searchedTerm === "") {
+											searchAnchorList = anchorList;
+											searchZoomList = allPoints.slice(0,100);
+										}
+										zoomController = gui.add(GUIparam, 'zoomPoint', searchZoomList.slice(0, 100)).name('Zoom to Point').onChange(function(term){
+											var zoomTerm = term.split(':')[0];
+											zoomedTerm = zoomTerm;
+											updatePtsColor();
+											camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+											camera.updateProjectionMatrix();
+										});
+
+										chooseAnchorController = gui.add(GUIparam, 'selectAnchor', searchAnchorList).name('Select Anchor').onChange(function(){
+											console.time("onChange of Search Anchor bar")
+											var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
+
+											console.log("start init dropdown LOADING " + id.toString());
+
+											originAttr = id;
+											getFileObject(traceDataDirectory + id.toString() +".txt", function (anchorData) {
+												let reader = new FileReader();
+
+												reader.onload = (e) => {
+													const file = e.target.result;
+													var lines = file.split(/\r\n|\n/);
+													lines = lines.slice(0, lines.length - 1);
+													loadAnchor(lines);
+												}
+
+												var a = reader.readAsText(anchorData);
+												console.timeEnd("onChange of Search Anchor bar")
+											});
+										});
+
+									});
+									zoomController = gui.add(GUIparam, 'zoomPoint', allPoints.slice(0, 100)).name('Zoom to Point').onChange(function(term){
+										var zoomTerm = term.split(':')[0];
+										var particle_text = particleData[zoomTerm].name;
+										var particle_pos = new THREE.Vector3(particlePositions[zoomTerm*3],
+												particlePositions[zoomTerm*3 + 1],
+												particlePositions[zoomTerm*3 + 2]);
+										zoomedTerm = zoomTerm;
+										updatePtsColor();
+										camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+
+										camera.updateProjectionMatrix();
+										console.log(particleColor[ zoomTerm * 3 ]);
+										//showTooltip(particle_pos, zoomTerm.toString() + ": " + particle_text);
+
+										// hideTooltip();
+										// camera.position.set(0,0, 800);
+
+
+									});
+
+
+									chooseAnchorController = gui.add(GUIparam, 'selectAnchor', anchorList).name('Select Anchor').onChange(function(){
+										console.time("onChange of Original Anchor bar")
+										var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
+
                                         originAttr = id;
-                                        getFileObject(dataDirectory + id.toString() +".txt",
-                                                            function (anchorData) {
+                                        getFileObject(traceDataDirectory + id.toString() +".txt", function (anchorData) {
                                             let reader = new FileReader();
 
                                             reader.onload = (e) => {
@@ -590,10 +679,11 @@
                                             }
 
                                             var a = reader.readAsText(anchorData);
-                                        }); 
-                                    }); 
+											console.timeEnd("onChange of Original Anchor bar")
+                                        });
+                                    });
 
-                                    /*  CHOOSING DATA TRACE, CURRENTLY NOT USED, IF SWITCHED ON, PLZ CHANGE LINE 581 FROM dataDirection to Data trace directory
+                                    /*  CHOOSING DATA TRACE, CURRENTLY NOT USED
                                     dataTraceController = gui.add(GUIparam, 'selectTraceDataset', datasetList).name('Select Trace Dataset').onChange(function(){
                                         traceDataDirectory = GUIparam.selectTraceDataset;
 
@@ -642,9 +732,9 @@
 
                     // TODO: We skipped size checking here, that means availableIds will have irrelevant data if point size is too big
 
-                    availableIds[eval(lnspl[0])] = lnspl.slice(1).join(' ');
+                    availableIds[lnspl[0]/1] = lnspl.slice(1).join(' ');
                 }
-                console.log(anchorList);
+
 
                 /* 
                 if (chooseAnchorController){
@@ -695,10 +785,10 @@
                     wordGraphAttribute = wordGraphAttribute.split(' ');
 
                     const id = i;
-					const x = eval(wordGraphAttribute[0]);
-					const y = eval(wordGraphAttribute[1]);
-                    const z = eval(wordGraphAttribute[2]);
-                    const nodeWeight = eval(wordGraphAttribute[3]);
+					const x = wordGraphAttribute[0]/1;
+					const y = wordGraphAttribute[1]/1;
+                    const z = wordGraphAttribute[2]/1;
+                    const nodeWeight = wordGraphAttribute[3]/1;
 
 					particlePositions[ i * 3 ] = x;
 					particlePositions[ i * 3 + 1 ] = y;
@@ -739,19 +829,22 @@
 
                 pointCloud = new THREE.Points( particles, pMaterial );
 				group.add( pointCloud );
+				allPoints = particleData.map(x => x.id + ": " + x.name);
             }
             
             // LOADING ANCHOR POINT
             function loadAnchor(lines) {
+				console.time("loadAnchor")
                 // We want to adjust the position here, initiate all the colors etc.
                 // particleConnectionWeight = new Float32Array( maxParticleCount);
                 particleConnectionWeight.fill(0);
 
+				// possibly vectorize? instead of iterate over all lines, use a mapped function
                 for (let i = 0; i < lines.length; i++) {
                     var lineData = lines[i].split(',');
 
-                    const id = eval(lineData[0]);
-                    const edgeWeight = eval(lineData[1]);
+                    const id = lineData[0]/1;
+                    const edgeWeight = lineData[1]/1;
                     
                     if (id >= maxParticleCount){
                         continue;
@@ -762,9 +855,10 @@
                         topEdgeWeight = edgeWeight;
                     }
                 }
-                
+
+
                 updatePtsColor();
-                
+				console.timeEnd("loadAnchor")
             }
 
             // Adjust so that the origini is at the origin point
@@ -792,6 +886,7 @@
 
             // Update the color value for all points
             function updatePtsColor() {
+				console.time("updatePtsColor")
                 for (let i = 0; i < maxParticleCount; i++) {
                     if ((particleWeight[i] < nodeWeightThreshold ||
                         particleConnectionWeight[i] < connWeightThreshold)
@@ -818,10 +913,13 @@
                         }
                         else {
                             var ratio = Math.pow(particleConnectionWeight[i] / topEdgeWeight, colorRatioPow);
-                            var mypos = particleData[i].name.split('_')[1];
+							var mypos = particleData[i].name.split('_')[1];
                             var finalColor;
                             switch (colorMode) {
                                 // Change color based on slime connection
+								// Cache all possible hsl values, save in a lookup table, and use those
+								// compute the RBG values once and simply look it up as needed
+								// discretize the ratios (small enough for no one to see difference)
                                 case "slime connect":
                                     finalColor = chroma.mix(farthestRGB, closestRGB, ratio, 'hsl').rgb();
                                     break;
@@ -870,7 +968,26 @@
                         }
                     }
                 }
+				if (zoomedTerm) {
+					particleColor[ zoomedTerm * 3 ] = zoomedPoint.rgb()[0] / 255;
+					particleColor[ zoomedTerm * 3 + 1 ] = zoomedPoint.rgb()[1] / 255;
+					particleColor[ zoomedTerm * 3 + 2] = zoomedPoint.rgb()[2] / 255;
+					particleOpacity[zoomedTerm] = 100.0;
+				}
+
+				console.timeEnd("updatePtsColor")
             }
+
+			// Update dropdown
+			function updateDropdown(target, list){
+				var innerHTMLStr = "";
+				for(var i=0; i<list.length; i++){
+					var str = "<option value='" + list[i] + "'>" + list[i] + "</option>";
+					innerHTMLStr += str;
+				}
+
+				if (innerHTMLStr != "") target.domElement.children[0].innerHTML = innerHTMLStr;
+			}
 
 		</script>
 	</body>
