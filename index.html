@@ -743,6 +743,9 @@
 										var zoomTerm = term.split(':')[0];
 										zoomedTerm = zoomTerm;
 										updatePtsColor();
+										originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+										originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+										originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
 										camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
 										camera.updateProjectionMatrix();
 										//camera.lookAt(0, 0, 0);
