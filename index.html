@@ -216,6 +216,16 @@
 	var annotationThreeColor = chroma("#1861b3");
 	var annotationFourColor = chroma("#1861b3");
 	var annotationFiveColor = chroma("#1861b3");
+	var annotationOneName = [''];
+	var annotationTwoName = [''];
+	var annotationThreeName = [''];
+	var annotationFourName = [''];
+	var annotationFiveName = [''];
+	var annotationOneNotes = [''];
+	var annotationTwoNotes = [''];
+	var annotationThreeNotes = [''];
+	var annotationFourNotes = [''];
+	var annotationFiveNotes = [''];
 
 	// actual calls
 	init();
@@ -819,12 +829,15 @@
 											const newAnnotationFolder1 = gui.addFolder('New Annotation 1');
 											newAnnotationFolder1.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder1.name = newAnnotationName;
+												annotationOneName[0] = newAnnotationName;
 											});
 											newAnnotationFolder1.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
 												annotationOneColor = chroma(colorVal);
 												updatePtsColor();
 											});
-											newAnnotationFolder1.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes');
+											newAnnotationFolder1.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes').onFinishChange(function(notes){
+												annotationOneNotes[0] = notes;
+											});
 											newAnnotationFolder1.add(newAnnotationParam, 'annotationStartSelect').name('Start Selecting Points').onChange(function(startBool){
 												if (startBool === true) {
 													annotationOn = 1;
@@ -850,6 +863,15 @@
 												//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
 												reAdjustGraphPos();
 											});
+											newAnnotationFolder1.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+												var annotationOneSearch = fuzzysort.go(searchedTerm, annotationOnePoints, {limit: 100, all: true, allowTypo: true});
+												var annotationOneResults = annotationOneSearch.map(x => x.target);
+												if (searchedTerm === "") {
+													annotationOneResults = annotationOnePoints;
+												}
+												console.info(annotationOneResults);
+												updateDropdown(annotationOneDropdown, annotationOneResults);
+											});
 											var removePointsOne = { removePoint:function() {
 												annotationOnePoints = annotationOnePoints.filter(item => !item.startsWith(zoomedTerm + ":"));
 												updateDropdown(annotationOneDropdown, annotationOnePoints);
@@ -862,13 +884,16 @@
 											const newAnnotationFolder2 = gui.addFolder('New Annotation 2');
 											newAnnotationFolder2.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder2.name = newAnnotationName;
+												annotationTwoName[0] = newAnnotationName;
 											});
 											newAnnotationFolder2.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
 												annotationTwoColor = chroma(colorVal);
 												console.log(annotationTwoColor);
 												updatePtsColor();
 											});
-											newAnnotationFolder2.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes');
+											newAnnotationFolder2.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes').onFinishChange(function(notes){
+												annotationTwoNotes[0] = notes;
+											});
 											newAnnotationFolder2.add(newAnnotationParam, 'annotationStartSelect').name('Start Selecting Points').onChange(function(startBool){
 												if (startBool === true) {
 													annotationOn = 2;
@@ -880,6 +905,15 @@
 											});
 											newAnnotationFolder2.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
 												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											newAnnotationFolder2.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+												var annotationTwoSearch = fuzzysort.go(searchedTerm, annotationTwoPoints, {limit: 100, all: true, allowTypo: true});
+												var annotationTwoResults = annotationTwoSearch.map(x => x.target);
+												if (searchedTerm === "") {
+													annotationTwoResults = annotationTwoPoints;
+												}
+												console.info(annotationTwoResults);
+												updateDropdown(annotationTwoDropdown, annotationTwoResults);
 											});
 											annotationTwoDropdown = newAnnotationFolder2.add(newAnnotationParam, 'annotationSearch', annotationTwoPoints).name('Points').onChange(function(term){
 												var zoomTerm = term.split(':')[0];
@@ -906,12 +940,15 @@
 											const newAnnotationFolder3 = gui.addFolder('New Annotation 3');
 											newAnnotationFolder3.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder3.name = newAnnotationName;
+												annotationThreeName[0] = newAnnotationName;
 											});
 											newAnnotationFolder3.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
 												annotationThreeColor = chroma(colorVal);
 												updatePtsColor();
 											});
-											newAnnotationFolder3.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes');
+											newAnnotationFolder3.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes').onFinishChange(function(notes){
+												annotationThreeNotes[0] = notes;
+											});
 											newAnnotationFolder3.add(newAnnotationParam, 'annotationStartSelect').name('Start Selecting Points').onChange(function(startBool){
 												if (startBool === true) {
 													annotationOn = 3;
@@ -923,6 +960,15 @@
 											});
 											newAnnotationFolder3.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
 												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											newAnnotationFolder3.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+												var annotationThreeSearch = fuzzysort.go(searchedTerm, annotationThreePoints, {limit: 100, all: true, allowTypo: true});
+												var annotationThreeResults = annotationThreeSearch.map(x => x.target);
+												if (searchedTerm === "") {
+													annotationThreeResults = annotationThreePoints;
+												}
+												console.info(annotationThreeResults);
+												updateDropdown(annotationThreeDropdown, annotationThreeResults);
 											});
 											annotationThreeDropdown = newAnnotationFolder3.add(newAnnotationParam, 'annotationSearch', annotationThreePoints).name('Points').onChange(function(term){
 												var zoomTerm = term.split(':')[0];
@@ -949,12 +995,15 @@
 											const newAnnotationFolder4 = gui.addFolder('New Annotation 4');
 											newAnnotationFolder4.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder4.name = newAnnotationName;
+												annotationFourName[0] = newAnnotationName;
 											});
 											newAnnotationFolder4.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
 												annotationFourColor = chroma(colorVal);
 												updatePtsColor();
 											});
-											newAnnotationFolder4.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes');
+											newAnnotationFolder4.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes').onFinishChange(function(notes){
+												annotationFourNotes[0] = notes;
+											});
 											newAnnotationFolder4.add(newAnnotationParam, 'annotationStartSelect').name('Start Selecting Points').onChange(function(startBool){
 												if (startBool === true) {
 													annotationOn = 4;
@@ -966,6 +1015,15 @@
 											});
 											newAnnotationFolder4.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
 												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											newAnnotationFolder4.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+												var annotationFourSearch = fuzzysort.go(searchedTerm, annotationFourPoints, {limit: 100, all: true, allowTypo: true});
+												var annotationFourResults = annotationFourSearch.map(x => x.target);
+												if (searchedTerm === "") {
+													annotationFourResults = annotationFourPoints;
+												}
+												console.info(annotationFourResults);
+												updateDropdown(annotationFourDropdown, annotationFourResults);
 											});
 											annotationFourDropdown = newAnnotationFolder4.add(newAnnotationParam, 'annotationSearch', annotationFourPoints).name('Points').onChange(function(term){
 												var zoomTerm = term.split(':')[0];
@@ -992,6 +1050,7 @@
 											const newAnnotationFolder5 = gui.addFolder('New Annotation 5');
 											newAnnotationFolder5.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder5.name = newAnnotationName;
+												annotationFiveName[0] = newAnnotationName;
 											});
 											newAnnotationFolder5.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
 												console.log(typeof colorVal);
@@ -999,7 +1058,9 @@
 												console.log(annotationFiveColor);
 												updatePtsColor();
 											});
-											newAnnotationFolder5.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes');
+											newAnnotationFolder5.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes').onFinishChange(function(notes){
+												annotationFiveNotes[0] = notes;
+											});
 											newAnnotationFolder5.add(newAnnotationParam, 'annotationStartSelect').name('Start Selecting Points').onChange(function(startBool){
 												if (startBool === true) {
 													annotationOn = 5;
@@ -1011,6 +1072,15 @@
 											});
 											newAnnotationFolder5.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
 												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											newAnnotationFolder5.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+												var annotationFiveSearch = fuzzysort.go(searchedTerm, annotationFivePoints, {limit: 100, all: true, allowTypo: true});
+												var annotationFiveResults = annotationFiveSearch.map(x => x.target);
+												if (searchedTerm === "") {
+													annotationFiveResults = annotationFivePoints;
+												}
+												console.info(annotationFiveResults);
+												updateDropdown(annotationFiveDropdown, annotationFiveResults);
 											});
 											annotationFiveDropdown = newAnnotationFolder5.add(newAnnotationParam, 'annotationSearch', annotationFivePoints).name('Points').onChange(function(term){
 												var zoomTerm = term.split(':')[0];
@@ -1038,6 +1108,27 @@
 									}
 								}};
 							gui.add(obj1,'addAnnotations').name("Add Annotation");
+
+							var exportAnnot = {exportAnn:function() {
+								var annotationOnePointsString = annotationOnePoints.join();
+								var annotationTwoPointsString = annotationTwoPoints.join();
+								var annotationThreePointsString = annotationThreePoints.join();
+								var annotationFourPointsString = annotationFourPoints.join();
+								var annotationFivePointsString = annotationFivePoints.join();
+								const rows = [
+									["ANNOTATION NAME", "ANNOTATION NOTES", "ANNOTATION POINTS"],
+									[annotationOneName[0], annotationOneNotes[0], annotationOnePointsString],
+									[annotationTwoName[0], annotationTwoNotes[0], annotationTwoPointsString],
+									[annotationThreeName[0], annotationThreeNotes[0], annotationThreePointsString],
+									[annotationFourName[0], annotationFourNotes[0], annotationFourPointsString],
+									[annotationFiveName[0], annotationFiveNotes[0], annotationFivePointsString]
+								];
+								let csvContent = "data:text/csv;charset=utf-8,"
+										+ rows.map(e => e.join(",")).join("\n");
+								var encodedUri = encodeURI(csvContent);
+								window.open(encodedUri);
+							}};
+							gui.add(exportAnnot, 'exportAnn').name("ExportAnnotations");
 
 
 							/*  CHOOSING DATA TRACE, CURRENTLY NOT USED
