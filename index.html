@@ -62,6 +62,7 @@
                 gl_FragColor = vec4(gcolor -  distance / 40.0, galpha);
             }
         </script>
+
 </head>
 <body>
 <div id="tooltip"></div>
@@ -1142,6 +1143,7 @@
                                 originAttr = id;
                                 getFileObject(traceDataDirectory + id.toString() +".txt",
                                                     function (anchorData) {
+
                                     let reader = new FileReader();
 
                                     reader.onload = (e) => {
