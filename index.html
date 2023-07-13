@@ -1,34 +1,37 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<title>Polyglot</title>
-		<style>
-			body {
-				margin: 0;
-			}
-            #data-selection{
-                height: 20px;
-            }
-            #tooltip {
-                position: fixed;
-                left: 0;
-                top: 0;
-                min-width: 100px;
-                text-align: left;
-                padding: 5px 12px;
-                font-family: Courier;
-                background: #c9c9c9;
-                display: none;
-                opacity: 0;
-                border: 1px solid black;
-                border-radius: 3px;
-            }
-		</style>
-		<script src="https://cdn.jsdelivr.net/npm/fuzzysort@2.0.4/fuzzysort.min.js"></script>
-		<script src="./chroma.js-master/chroma.js"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-        <script type="x-shader/x-fragment" id="vertexshader-token">
+<head>
+	<meta charset="utf-8">
+	<title>Polyglot</title>
+	<style>
+		html {
+			cursor: url("cursor 120x120.svg") 20 20, auto;
+		}
+		body {
+			margin: 0;
+		}
+		#data-selection{
+			height: 20px;
+		}
+		#tooltip {
+			position: fixed;
+			left: 0;
+			top: 0;
+			min-width: 100px;
+			text-align: left;
+			padding: 5px 12px;
+			font-family: Courier;
+			background: #c9c9c9;
+			display: none;
+			opacity: 0;
+			border: 1px solid black;
+			border-radius: 3px;
+		}
+	</style>
+	<script src="https://cdn.jsdelivr.net/npm/fuzzysort@2.0.4/fuzzysort.min.js"></script>
+	<script src="./chroma.js-master/chroma.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script type="x-shader/x-fragment" id="vertexshader-token">
             attribute float alpha;
             uniform float scale;
 
@@ -44,7 +47,7 @@
                 galpha = alpha;
             }
         </script>
-        <script type="x-shader/x-fragment" id="fragmentshader-token">
+	<script type="x-shader/x-fragment" id="fragmentshader-token">
             varying vec3 gcolor;
             varying float galpha;
             void main() {
@@ -59,723 +62,758 @@
                 gl_FragColor = vec4(gcolor -  distance / 40.0, galpha);
             }
         </script>
-	</head>
-	<body>
-        <div id="tooltip"></div>
+</head>
+<body>
+<div id="tooltip"></div>
 
-        <div id="container"></div>
-		<script type="module">
-            import * as THREE from './build/three.module.js';
-            import { OrbitControls } from './jsm/controls/OrbitControls.js';
-            import { GUI } from './jsm/libs/dat.gui.module.js';
-            // #######################################################
-            //      COPY N PASTE FROM THE WEB
-            // #######################################################
+<div id="container"></div>
+<script type="module">
+	import * as THREE from './build/three.module.js';
+	import { OrbitControls } from './jsm/controls/OrbitControls.js';
+	import { GUI } from './jsm/libs/dat.gui.module.js';
+	// #######################################################
+	//      COPY N PASTE FROM THE WEB
+	// #######################################################
 
-            var getFileBlob = function (url, cb) {
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", url);
-                xhr.responseType = "blob";
-                xhr.addEventListener('load', function() {
-                    cb(xhr.response);
-                });
-                xhr.send();
-            };
+	var getFileBlob = function (url, cb) {
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", url);
+		xhr.responseType = "blob";
+		xhr.addEventListener('load', function() {
+			cb(xhr.response);
+		});
+		xhr.send();
+	};
 
-            var blobToFile = function (blob, name) {
-                blob.lastModifiedDate = new Date();
-                blob.name = name;
-                return blob;
-            };
+	var blobToFile = function (blob, name) {
+		blob.lastModifiedDate = new Date();
+		blob.name = name;
+		return blob;
+	};
 
-            var getFileObject = function(filePathOrUrl, cb) {
-                var splitUrl = filePathOrUrl.split('/');
-                getFileBlob(filePathOrUrl, function (blob) {
-                    cb(blobToFile(blob, splitUrl[splitUrl.length - 1]));
-                });
-            };
-            // #######################################################
+	var getFileObject = function(filePathOrUrl, cb) {
+		var splitUrl = filePathOrUrl.split('/');
+		getFileBlob(filePathOrUrl, function (blob) {
+			cb(blobToFile(blob, splitUrl[splitUrl.length - 1]));
+		});
+	};
+	// #######################################################
 
-            // Get variable from URL, modified for quick access to music embedding
-            const urlParams = new URLSearchParams(window.location.search);
-            let ifMusic = urlParams.get('music') == 'true';
+	// Get variable from URL, modified for quick access to music embedding
+	const urlParams = new URLSearchParams(window.location.search);
+	let ifMusic = urlParams.get('music') == 'true';
 
-            let dataDirectory = "data/global_1/";
-            let firstFile = true; // We want this to be false after loading the first file so that the points dont shift around
+	let dataDirectory = "data/global_1/";
+	let firstFile = true; // We want this to be false after loading the first file so that the points dont shift around
 
-            // ** Set of variables from deposit_reader.py, important for coordiante conversion **
-            let SCALING_FACTOR_SLIME = 10;
-            let GRID_MIN = [-115.75681, -101.80056, -126.10199]; // grid center - size / 2 given in metadata
+	// ** Set of variables from deposit_reader.py, important for coordiante conversion **
+	let SCALING_FACTOR_SLIME = 10;
+	let GRID_MIN = [-115.75681, -101.80056, -126.10199]; // grid center - size / 2 given in metadata
 
-            let group
-            let container, stat;
-			let camera, scene, renderer;
-			let pointCloud;
-            let controls;
+	let group
+	let container, stat;
+	let camera, scene, renderer;
+	let pointCloud;
+	let controls;
 
-            let gui;
-            let GUIparam;
-			let newAnnotationParam;
+	let gui;
+	let GUIparam;
+	let newAnnotationParam;
 
-            let origini = 0;
-            let originAttr = '';
-            let originX = 0;
-            let originY = 0;
-            let originZ = 0;
+	let origini = 0;
+	let originAttr = '';
+	let originX = 0;
+	let originY = 0;
+	let originZ = 0;
 
-            let raycaster, mouse = new THREE.Vector2(), INTERSECTED;
-			let raycasterMultiTokens = new THREE.Vector2();
-            let originalHEX;
+	let raycaster, mouse = new THREE.Vector2(), INTERSECTED;
+	let raycasterMultiTokens = new THREE.Vector2();
+	let raycasterAnnotations = new THREE.Vector2();
+	let originalHEX;
 
-            var chooseAnchorController;
-			var zoomController;
-            var anchorList = ["0: also_ADV", "918: right_NOUN"];
-			var searchAnchorList = ["0: also_ADV", "918: right_NOUN"];
-			var searchZoomList = ["0: also_ADV", "918: right_NOUN"];
-            var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/Lautonomy_Data/"];
-            let traceDataDirectory = "data/global_1/";
-            var dataTraceController;
+	var chooseAnchorController;
+	var zoomController;
+	var annotationOneDropdown;
+	var annotationTwoDropdown;
+	var annotationThreeDropdown;
+	var annotationFourDropdown;
+	var annotationFiveDropdown;
+	var anchorList = ["0: also_ADV", "918: right_NOUN"];
+	var searchAnchorList = ["0: also_ADV", "918: right_NOUN"];
+	var searchZoomList = ["0: also_ADV", "918: right_NOUN"];
+	var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/Lautonomy_Data/"];
+	let traceDataDirectory = "data/global_1/";
+	var dataTraceController;
 
-            // change initial dataset if music == true, modified for quick access to music embedding
-            if (ifMusic){
-                dataDirectory = datasetList[2];
-                traceDataDirectory = datasetList[2];
-            }
+	// change initial dataset if music == true, modified for quick access to music embedding
+	if (ifMusic){
+		dataDirectory = datasetList[2];
+		traceDataDirectory = datasetList[2];
+	}
 
-            var chooseDatasetController;
-            
-			var maxParticleCount = 1000;
-            const particleData = [];
-			let particles;
-            let particleConnectionWeight;
-            let particleWeight;
-			let particlePositions;
-            let particleColor;
-            let particleOpacity;
-			let allPoints;
-            let topEdgeWeight = -1;
-            let topNodeWeight = -1;
-            let nodeWeightThreshold = 0; // Use this to filter out low weight nodes
-            let connWeightThreshold = 0; // Use this to filter out low slime mold connection
+	var chooseDatasetController;
 
-            let availableIds = {}; // List of IDs available, each entry is in format [id, info]
+	var maxParticleCount = 1000;
+	const particleData = [];
+	let particles;
+	let particleConnectionWeight;
+	let particleWeight;
+	let particlePositions;
+	let particleColor;
+	let particleOpacity;
+	let allPoints;
+	let topEdgeWeight = -1;
+	let topNodeWeight = -1;
+	let nodeWeightThreshold = 0; // Use this to filter out low weight nodes
+	let connWeightThreshold = 0; // Use this to filter out low slime mold connection
 
-            // ===================================
-            // =========VARIABLE FOR NEW THINGS===
-            // ===================================
-            // ===================================
+	let availableIds = {}; // List of IDs available, each entry is in format [id, info]
 
-            let shiftPressed = false;
-            let shiftDim = true;
-            let displayMultiToken = false;
-            let alwaysAnchor = false;
-            let colorMode = "slime connect";
-            let filterPOS = "None";
+	// ===================================
+	// =========VARIABLE FOR NEW THINGS===
+	// ===================================
+	// ===================================
 
-            // Allow linear intepolation between two colors based on distance
-            var closestRGB = chroma('#f2190a');
-            var farthestRGB = chroma('#293366');
-            var originRGB = chroma([224, 144, 154]);
-            var navigableRGB = chroma('#f7e968');
-			var zoomedPoint = chroma('#00ff22');
-			var zoomedTerm;
+	let shiftPressed = false;
+	let shiftDim = true;
+	let displayMultiToken = false;
+	let alwaysAnchor = false;
+	let colorMode = "slime connect";
+	let filterPOS = "None";
 
-            var originalRGB = [0, 0, 0, 0]; // Different from OriginRGB, this is used to store original color for highlighting
+	// Allow linear intepolation between two colors based on distance
+	var closestRGB = chroma('#f2190a');
+	var farthestRGB = chroma('#293366');
+	var originRGB = chroma([224, 144, 154]);
+	var navigableRGB = chroma('#f7e968');
+	var zoomedPoint = chroma('#00ff22');
+	var zoomedTerm;
 
-            let posColorMap = { 'ADV': chroma('#5ddfe8'),   'NUM': chroma('#bfd474'),
-                                'ADJ': chroma('#773ac2'),   'NOUN': chroma('#9cd63e'),
-                                'VERB': chroma('#3e7bd6'),  'ADP': chroma('#8052bf'),
-                                'AUX': chroma('#00399c'),   'PROPN': chroma('#d64d3e'),
-                                'DET': chroma('#899400'),   'PUNCT': chroma('#940155'),
-                                'PRON': chroma('#8a0d00'),  'CCONJ': chroma('#820133'),
-                                'X': chroma('#006e0d'),     'PART': chroma('#734d00'),
-                                'INTJ': chroma('#802700'),  'SYM': chroma('#ad00a8')};
+	var originalRGB = [0, 0, 0, 0]; // Different from OriginRGB, this is used to store original color for highlighting
 
-            var colorRatioPow = 0.5;
-            var opacityTuning = 0.4;
-            var navigationMode = false;
-			var numAnnotations = 0;
-			var annotationOn = -1; // equals -1 when no annotation mode is on and equals [1, 5] if a certain annotation mode is on
-			var showAnnotations = true;
-			var annotationOnePoints = [];
-			var annotationTwoPoints = [];
-			var annotationThreePoints = [];
-			var annotationFourPoints = [];
-			var annotationFivePoints = [];
-			var annotationOneColor = chroma("#1861b3");
-			var annotationTwoColor = chroma("#1861b3");
-			var annotationThreeColor = chroma("#1861b3");
-			var annotationFourColor = chroma("#1861b3");
-			var annotationFiveColor = chroma("#1861b3");
+	let posColorMap = { 'ADV': chroma('#5ddfe8'),   'NUM': chroma('#bfd474'),
+		'ADJ': chroma('#773ac2'),   'NOUN': chroma('#9cd63e'),
+		'VERB': chroma('#3e7bd6'),  'ADP': chroma('#8052bf'),
+		'AUX': chroma('#00399c'),   'PROPN': chroma('#d64d3e'),
+		'DET': chroma('#899400'),   'PUNCT': chroma('#940155'),
+		'PRON': chroma('#8a0d00'),  'CCONJ': chroma('#820133'),
+		'X': chroma('#006e0d'),     'PART': chroma('#734d00'),
+		'INTJ': chroma('#802700'),  'SYM': chroma('#ad00a8')};
 
-			// actual calls
-            init();
-            animate();
+	var colorRatioPow = 0.5;
+	var opacityTuning = 0.4;
+	var navigationMode = false;
+	var numAnnotations = 0;
+	var annotationOn = -1; // equals -1 when no annotation mode is on and equals [1, 5] if a certain annotation mode is on
+	var showAnnotations = true;
+	var annotationOnePoints = [];
+	var annotationTwoPoints = [];
+	var annotationThreePoints = [];
+	var annotationFourPoints = [];
+	var annotationFivePoints = [];
+	var annotationOneColor = chroma("#1861b3");
+	var annotationTwoColor = chroma("#1861b3");
+	var annotationThreeColor = chroma("#1861b3");
+	var annotationFourColor = chroma("#1861b3");
+	var annotationFiveColor = chroma("#1861b3");
 
-            function init(){
-                container = document.getElementById( 'container' );
+	// actual calls
+	init();
+	animate();
 
-                raycaster = new THREE.Raycaster();
-                raycaster.params.Points.threshold = 0.7;
-				raycasterMultiTokens = new THREE.Raycaster();
-				raycasterMultiTokens.params.Points.threshold = 1.75;
+	function init(){
+		container = document.getElementById( 'container' );
 
-				// ALSO CHANGED THE POINTS THRESHOLD FOR BETTER POINT SELECTION WHEN ZOOMED IN
-                document.addEventListener('mousemove', onDocumentMouseMove, false);
+		raycaster = new THREE.Raycaster();
+		raycaster.params.Points.threshold = 0.7;
+		raycasterMultiTokens = new THREE.Raycaster();
+		raycasterMultiTokens.params.Points.threshold = 1.75;
+		raycasterAnnotations = new THREE.Raycaster();
+		raycasterMultiTokens.params.Points.threshold = 3.75;
 
-                scene = new THREE.Scene();
-                camera = new THREE.PerspectiveCamera(45, 
-                    window.innerWidth/window.innerHeight, 5, 4000);
-                camera.position.z = 800;
-				camera.near = 5;
-                // CHANGED NEAR PARAM TO MAKE RAY CASTING SMOOTHER DURING ZOOM
+		// ALSO CHANGED THE POINTS THRESHOLD FOR BETTER POINT SELECTION WHEN ZOOMED IN
+		document.addEventListener('mousemove', onDocumentMouseMove, false);
+
+		scene = new THREE.Scene();
+		camera = new THREE.PerspectiveCamera(45,
+				window.innerWidth/window.innerHeight, 5, 4000);
+		camera.position.z = 800;
+		camera.near = 5;
+		// CHANGED NEAR PARAM TO MAKE RAY CASTING SMOOTHER DURING ZOOM
 
 
 
-                // REQUIRED - For camera control
-			    controls = new OrbitControls( camera, container );
-				//controls.minDistance = 0;
-                
-                // REQUIRED - group to add everything in
-                group = new THREE.Group();
-                scene.add(group);
+		// REQUIRED - For camera control
+		controls = new OrbitControls( camera, container );
+		//controls.minDistance = 0;
 
-                // REQUIRED - add meshes, add both point and edge (Should be reading data)
-                initializeData();
-                automaticLoadData(dataDirectory);
-                
-                // REQUIRED
-                renderer = new THREE.WebGLRenderer();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-                document.body.appendChild(renderer.domElement);
-                
-				container.appendChild( renderer.domElement );
+		// REQUIRED - group to add everything in
+		group = new THREE.Group();
+		scene.add(group);
 
-                // REQUIRED - GUI Setup
+		// REQUIRED - add meshes, add both point and edge (Should be reading data)
+		initializeData();
+		automaticLoadData(dataDirectory);
 
-                gui = new GUI();
+		// REQUIRED
+		renderer = new THREE.WebGLRenderer();
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		document.body.appendChild(renderer.domElement);
 
-                GUIparam = {
-                    'selectData': dataDirectory,
-                    'colorMode': "slime connect",
-                    'filterPOS': "None",
-                    'colorRatioPow': 0.5,
-                    'nodeWeightThreshold': 0,
-                    'particleConnectionWeight': 0,
-                    'opacityTuning': 0.4,
-                    'shiftDim': true,
-                    'displayMultiToken': false,
-                    'alwaysAnchor': false,
-                    'selectAnchor': "0: also_ADV",
-                    'selectTraceDataset': traceDataDirectory,
-					'textField': "",
-					'zoomPoint':"",
-					'showAnnotations': true
-                };
+		container.appendChild( renderer.domElement );
 
-				newAnnotationParam = {
-					'annotationName': 'Annotation Name',
-					'annotationColor': "#1861b3",
-					'annotationNotes': 'Annotation Notes',
-					'annotationStartSelect': false
-				};
+		// REQUIRED - GUI Setup
 
-                gui.add(GUIparam, 'selectData', datasetList).name('Select Dataset').onChange(function(){
-                    dataDirectory = GUIparam.selectData;
-                    automaticLoadData(dataDirectory);
-                })
+		gui = new GUI();
 
-                var colorModeList = ["slime connect", "part of speech"];
+		GUIparam = {
+			'selectData': dataDirectory,
+			'colorMode': "slime connect",
+			'filterPOS': "None",
+			'colorRatioPow': 0.5,
+			'nodeWeightThreshold': 0,
+			'particleConnectionWeight': 0,
+			'opacityTuning': 0.4,
+			'shiftDim': true,
+			'displayMultiToken': false,
+			'alwaysAnchor': false,
+			'selectAnchor': "0: also_ADV",
+			'selectTraceDataset': traceDataDirectory,
+			'textField': "",
+			'zoomPoint':"",
+			'showAnnotations': true
+		};
 
-                gui.add(GUIparam, 'colorMode', colorModeList).name('Color Mode').onChange(function(){
-                    colorMode = GUIparam.colorMode;
-                    updatePtsColor();
-                })
+		newAnnotationParam = {
+			'annotationName': 'Annotation Name',
+			'annotationColor': "#1861b3",
+			'annotationNotes': 'Annotation Notes',
+			'annotationStartSelect': false,
+			'annotationBrushSize': 1,
+			'annotationSearch': ""
+		};
 
-                var filterPOSList = ['None', 'NOUN+VERB+ADJ+ADV', 'ADV', 'NUM', 'ADJ', 'NOUN', 'VERB', 'ADP', 'AUX', 'PROPN',
-                                'DET', 'PUNCT', 'PRON', 'CCONJ', 'X', 'PART', 'INTJ', 'SYM']
-                                
-                gui.add(GUIparam, 'filterPOS', filterPOSList).name('Filter POS').onChange(function(){
-                    filterPOS = GUIparam.filterPOS;
-                    updatePtsColor();
-                })
+		gui.add(GUIparam, 'selectData', datasetList).name('Select Dataset').onChange(function(){
+			dataDirectory = GUIparam.selectData;
+			automaticLoadData(dataDirectory);
+		})
 
-                gui.add(GUIparam, 'colorRatioPow', 0.05, 1, 0.005).name('Color Gradient').onChange(function(){
-                    colorRatioPow = GUIparam.colorRatioPow;
-                    updatePtsColor();
-                })
+		var colorModeList = ["slime connect", "part of speech"];
 
-                gui.add(GUIparam, 'nodeWeightThreshold', 0, 1).name('Lowest Weight').onChange(function(){
-                    nodeWeightThreshold = GUIparam.nodeWeightThreshold;
-                    updatePtsColor();
-                })
+		gui.add(GUIparam, 'colorMode', colorModeList).name('Color Mode').onChange(function(){
+			colorMode = GUIparam.colorMode;
+			updatePtsColor();
+		})
 
-                gui.add(GUIparam, 'particleConnectionWeight', 0, 70000).name('Lowest Connect').onChange(function(){
-                    connWeightThreshold = GUIparam.particleConnectionWeight;
-                    updatePtsColor();
-                })
+		var filterPOSList = ['None', 'NOUN+VERB+ADJ+ADV', 'ADV', 'NUM', 'ADJ', 'NOUN', 'VERB', 'ADP', 'AUX', 'PROPN',
+			'DET', 'PUNCT', 'PRON', 'CCONJ', 'X', 'PART', 'INTJ', 'SYM']
 
-                gui.add(GUIparam, 'opacityTuning', 0, 1).name('Opacity Fading').onChange(function(){
-                    opacityTuning = GUIparam.opacityTuning;
-                    updatePtsColor();
-                })
+		gui.add(GUIparam, 'filterPOS', filterPOSList).name('Filter POS').onChange(function(){
+			filterPOS = GUIparam.filterPOS;
+			updatePtsColor();
+		})
 
-                gui.add(GUIparam, 'shiftDim').name('Dim When Shift').onChange(function(){
-                    shiftDim = GUIparam.shiftDim;
-                })
+		gui.add(GUIparam, 'colorRatioPow', 0.05, 1, 0.005).name('Color Gradient').onChange(function(){
+			colorRatioPow = GUIparam.colorRatioPow;
+			updatePtsColor();
+		})
 
-                gui.add(GUIparam, 'displayMultiToken').name('Show More Tokens').onChange(function(){
-                    displayMultiToken = GUIparam.displayMultiToken;
-                })
+		gui.add(GUIparam, 'nodeWeightThreshold', 0, 1).name('Lowest Weight').onChange(function(){
+			nodeWeightThreshold = GUIparam.nodeWeightThreshold;
+			updatePtsColor();
+		})
 
-                gui.add(GUIparam, 'alwaysAnchor').name('Keep Anchor Displayed').onChange(function(){
-                    alwaysAnchor = GUIparam.alwaysAnchor;
-                    updatePtsColor();
-                })
+		gui.add(GUIparam, 'particleConnectionWeight', 0, 70000).name('Lowest Connect').onChange(function(){
+			connWeightThreshold = GUIparam.particleConnectionWeight;
+			updatePtsColor();
+		})
 
-				gui.add(GUIparam, 'showAnnotations').name('Show Annotations').onChange(function(showAnnotationsBool){
-					showAnnotations = showAnnotationsBool;
-					updatePtsColor();
-				})
-                
-                window.addEventListener( 'resize', onWindowResize, false );
-                document.addEventListener('dblclick', onDocumentDoubleClick);
-                document.addEventListener('keydown', onKeyDownEvent);
-                document.addEventListener('keyup', onKeyUpEvent);
-            }
+		gui.add(GUIparam, 'opacityTuning', 0, 1).name('Opacity Fading').onChange(function(){
+			opacityTuning = GUIparam.opacityTuning;
+			updatePtsColor();
+		})
 
-            function onWindowResize() {
+		gui.add(GUIparam, 'shiftDim').name('Dim When Shift').onChange(function(){
+			shiftDim = GUIparam.shiftDim;
+		})
 
-                const size = new THREE.Vector2()
-                renderer.getSize( size );
+		gui.add(GUIparam, 'displayMultiToken').name('Show More Tokens').onChange(function(){
+			displayMultiToken = GUIparam.displayMultiToken;
+		})
 
-                camera.aspect = size.x / size.y;
-                camera.updateProjectionMatrix();
+		gui.add(GUIparam, 'alwaysAnchor').name('Keep Anchor Displayed').onChange(function(){
+			alwaysAnchor = GUIparam.alwaysAnchor;
+			updatePtsColor();
+		})
 
-                renderer.setSize( size.x, size.y );
+		gui.add(GUIparam, 'showAnnotations').name('ShowAnnotations').onChange(function(showAnnotationsBool){
+			showAnnotations = showAnnotationsBool;
+			updatePtsColor();
+		})
 
-            }
+		window.addEventListener( 'resize', onWindowResize, false );
+		document.addEventListener('dblclick', onDocumentDoubleClick);
+		document.addEventListener('keydown', onKeyDownEvent);
+		document.addEventListener('keyup', onKeyUpEvent);
+	}
 
-            function onDocumentMouseMove(event) {
+	function onWindowResize() {
 
-                event.preventDefault();
+		const size = new THREE.Vector2()
+		renderer.getSize( size );
 
-                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            }
+		camera.aspect = size.x / size.y;
+		camera.updateProjectionMatrix();
 
-            // Check if the point being clicked on can be navigated, if so, load the point    
-            function onDocumentDoubleClick(event) {
-                // console.log(Object.keys(availableIds));
+		renderer.setSize( size.x, size.y );
 
-                event.preventDefault();
-                if (INTERSECTED) {
-                    if (availableIds[particleData[INTERSECTED].id]){ // Check if point is navigatable
-                        originAttr = particleData[INTERSECTED].id;
-                        getFileObject(dataDirectory + particleData[INTERSECTED].id.toString() +".txt",
-                                         function (anchorData) {
-                            let reader = new FileReader();
+	}
 
-                            reader.onload = (e) => {
-                                const file = e.target.result;
-                                var lines = file.split(/\r\n|\n/);
-                                lines = lines.slice(0, lines.length - 1);
-                                loadAnchor(lines);
+	function onDocumentMouseMove(event) {
+		event.preventDefault();
+
+		mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+		mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+	}
+
+	// Check if the point being clicked on can be navigated, if so, load the point
+	function onDocumentDoubleClick(event) {
+		// console.log(Object.keys(availableIds));
+
+		event.preventDefault();
+		if (INTERSECTED) {
+			if (availableIds[particleData[INTERSECTED].id]){ // Check if point is navigatable
+				originAttr = particleData[INTERSECTED].id;
+				getFileObject(dataDirectory + particleData[INTERSECTED].id.toString() +".txt",
+						function (anchorData) {
+							let reader = new FileReader();
+
+							reader.onload = (e) => {
+								const file = e.target.result;
+								var lines = file.split(/\r\n|\n/);
+								lines = lines.slice(0, lines.length - 1);
+								loadAnchor(lines);
 								var anchorName = particleData[INTERSECTED].id.toString() + ": " + particleData[INTERSECTED].name.toString();
 								anchorList.unshift(anchorName);
 								updateDropdown(chooseAnchorController, anchorList);
-                            }
+							}
 
 
-                            var a = reader.readAsText(anchorData);
-                        }); 
-                    }
-                }
-            }
+							var a = reader.readAsText(anchorData);
+						});
+			}
+		}
+	}
 
-            function onKeyDownEvent(event) {
-                if (event.keyCode == 16 && !shiftPressed){ // SHIFT key
-                    shiftPressed = true;
-                    updatePtsColor();
-                }
-            }
+	function onKeyDownEvent(event) {
+		if (event.keyCode == 16 && !shiftPressed){ // SHIFT key
+			shiftPressed = true;
+			updatePtsColor();
+		}
+	}
 
 
-            function onKeyUpEvent(event) {
-                if (event.keyCode == 16 && shiftPressed){ // SHIFT key
-                    shiftPressed = false;
-                    updatePtsColor();
-                }
-            }
+	function onKeyUpEvent(event) {
+		if (event.keyCode == 16 && shiftPressed){ // SHIFT key
+			shiftPressed = false;
+			updatePtsColor();
+		}
+	}
 
-            function animate() {
-				pointCloud.geometry.attributes.position.needsUpdate = true;
-				pointCloud.geometry.attributes.color.needsUpdate = true;
-				pointCloud.geometry.attributes.alpha.needsUpdate = true;
+	function animate() {
+		pointCloud.geometry.attributes.position.needsUpdate = true;
+		pointCloud.geometry.attributes.color.needsUpdate = true;
+		pointCloud.geometry.attributes.alpha.needsUpdate = true;
 
-				requestAnimationFrame( animate );
+		requestAnimationFrame( animate );
 
-				render();
-            }
+		render();
+	}
 
-            function render() {
+	function render() {
 
-                const time = Date.now() * 0.001;
+		const time = Date.now() * 0.001;
 
-                raycastMouse();
+		raycastMouse();
 
-                renderer.render( scene, camera );
+		renderer.render( scene, camera );
 
-            }
+	}
 
-            function raycastMouse() {
-				raycasterMultiTokens.setFromCamera( mouse, camera );
-				var intersectsMultiTokens = raycasterMultiTokens.intersectObject(pointCloud);
-                raycaster.setFromCamera( mouse, camera );
-                var intersects = raycaster.intersectObject(pointCloud);
+	function raycastMouse() {
+		if (displayMultiToken) {
+			raycasterMultiTokens.setFromCamera( mouse, camera );
+			var intersectsMultiTokens = raycasterMultiTokens.intersectObject(pointCloud);
+		}
 
-				// if there is any point being intersected at the moment
-                if (intersects.length > 0){
-                    var tobeINTERSECTED = null;
-                    for (var i = 0; i < intersects.length; i++) {
-                        // Test shift filtering and then test threshold
-                        if (shiftPressed && availableIds[particleData[intersects[i].index].id]
-                            || !shiftPressed){
-                            if (
-                                (particleWeight[intersects[i].index] >= nodeWeightThreshold &&
-                                particleConnectionWeight[intersects[i].index]>= connWeightThreshold)
-                                 ||
-                                (availableIds[particleData[intersects[i].index].id] && alwaysAnchor)
-                                ){
+		if (annotationOn !== -1) {
 
-                                tobeINTERSECTED = intersects[i].index;
-                                break;
-                            }
-                        }
-                    }
+			raycasterAnnotations.setFromCamera( mouse, camera );
+			var annotationIntersects = raycasterAnnotations.intersectObject(pointCloud);
+		}
 
-                    if ( tobeINTERSECTED && INTERSECTED != intersects[0].index ) {
+		raycaster.setFromCamera( mouse, camera );
+		var intersects = raycaster.intersectObject(pointCloud);
 
-                        particleColor[INTERSECTED * 3] = originalRGB[0];
-                        particleColor[INTERSECTED * 3 + 1] = originalRGB[1];
-                        particleColor[INTERSECTED * 3 + 2] = originalRGB[2];
-                        particleOpacity[INTERSECTED] = originalRGB[3];
 
-                        INTERSECTED = tobeINTERSECTED;
+		// if there is any point being intersected at the moment
+		if (intersects.length > 0){
+			var tobeINTERSECTED = null;
+			for (var i = 0; i < intersects.length; i++) {
+				// Test shift filtering and then test threshold
+				if (shiftPressed && availableIds[particleData[intersects[i].index].id]
+						|| !shiftPressed){
+					if (
+							(particleWeight[intersects[i].index] >= nodeWeightThreshold &&
+									particleConnectionWeight[intersects[i].index]>= connWeightThreshold)
+							||
+							(availableIds[particleData[intersects[i].index].id] && alwaysAnchor)
+					){
 
-                        originalRGB = [particleColor[INTERSECTED * 3],
-                                    particleColor[INTERSECTED * 3 + 1],
-                                    particleColor[INTERSECTED * 3 + 2],
-                                    particleOpacity[INTERSECTED]];
+						tobeINTERSECTED = intersects[i].index;
+						break;
+					}
+				}
+			}
 
-                        particleColor[INTERSECTED * 3] = 1;
-                        particleColor[INTERSECTED * 3 + 1] = 1;
-                        particleColor[INTERSECTED * 3 + 2] = 1;
-                        particleOpacity[INTERSECTED] = 1;
+			if ( tobeINTERSECTED && INTERSECTED != intersects[0].index ) {
+				particleColor[INTERSECTED * 3] = originalRGB[0];
+				particleColor[INTERSECTED * 3 + 1] = originalRGB[1];
+				particleColor[INTERSECTED * 3 + 2] = originalRGB[2];
+				particleOpacity[INTERSECTED] = originalRGB[3];
 
-                        var particle_text = particleData[INTERSECTED].name;
-                        var particle_pos = new THREE.Vector3(particlePositions[INTERSECTED*3],
-                                            particlePositions[INTERSECTED*3 + 1],
-                                            particlePositions[INTERSECTED*3 + 2]);
+				INTERSECTED = tobeINTERSECTED;
 
-                        // A hacky solution to display multiple tokens
-                        var particle_mesg = "";
-                        if (displayMultiToken){
-                            for (var i = 0; i < intersectsMultiTokens.length; i++) {
-                                if (shiftPressed && availableIds[particleData[intersectsMultiTokens[i].index].id]
-                                    || !shiftPressed){
-                                    if (particleWeight[intersectsMultiTokens[i].index] >= nodeWeightThreshold &&
-                                        particleConnectionWeight[intersectsMultiTokens[i].index]>= connWeightThreshold){
+				originalRGB = [particleColor[INTERSECTED * 3],
+					particleColor[INTERSECTED * 3 + 1],
+					particleColor[INTERSECTED * 3 + 2],
+					particleOpacity[INTERSECTED]];
 
-                                        particle_mesg += "{" + particleData[intersectsMultiTokens[i].index].name + "}\n";
-                                    }
-                                }
-                            }
-                        }
-                        else {
-                            particle_mesg = intersects[i].index.toString() + ": " + particle_text;
-                        }
-                        showTooltip(particle_pos, particle_mesg);
+				particleColor[INTERSECTED * 3] = 1;
+				particleColor[INTERSECTED * 3 + 1] = 1;
+				particleColor[INTERSECTED * 3 + 2] = 1;
+				particleOpacity[INTERSECTED] = 1;
 
-						// Check if annotation mode is on and add points to respective annotation group
-						if (annotationOn !== -1) {
-							switch (annotationOn) {
-								case 1:
-									annotationOnePoints.push(particle_mesg.split(':')[0] + ": " + particle_text);
-									particleColor[particle_mesg.split(':')[0] * 3] = annotationOneColor.rgb()[0] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 1] = annotationOneColor.rgb()[1] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 2] = annotationOneColor.rgb()[2] / 255;
-									originalRGB = [particleColor[INTERSECTED * 3],
-										particleColor[INTERSECTED * 3 + 1],
-										particleColor[INTERSECTED * 3 + 2],
-										particleOpacity[INTERSECTED]];
-									break
-								case 2:
-									annotationTwoPoints.push(intersects[i].index.toString() + ": " + particle_text);
-									particleColor[particle_mesg.split(':')[0] * 3] = annotationTwoColor.rgb()[0] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 1] = annotationTwoColor.rgb()[1] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 2] = annotationTwoColor.rgb()[2] / 255;
-									originalRGB = [particleColor[INTERSECTED * 3],
-										particleColor[INTERSECTED * 3 + 1],
-										particleColor[INTERSECTED * 3 + 2],
-										particleOpacity[INTERSECTED]];
-									break
-								case 3:
-									annotationThreePoints.push(intersects[i].index.toString() + ": " + particle_text);
-									particleColor[particle_mesg.split(':')[0] * 3] = annotationThreeColor.rgb()[0] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 1] = annotationThreeColor.rgb()[1] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 2] = annotationThreeColor.rgb()[2] / 255;
-									originalRGB = [particleColor[INTERSECTED * 3],
-										particleColor[INTERSECTED * 3 + 1],
-										particleColor[INTERSECTED * 3 + 2],
-										particleOpacity[INTERSECTED]];
-									break
-								case 4:
-									annotationFourPoints.push(intersects[i].index.toString() + ": " + particle_text);
-									particleColor[particle_mesg.split(':')[0] * 3] = annotationFourColor.rgb()[0] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 1] = annotationFourColor.rgb()[1] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 2] = annotationFourColor.rgb()[2] / 255;
-									originalRGB = [particleColor[INTERSECTED * 3],
-										particleColor[INTERSECTED * 3 + 1],
-										particleColor[INTERSECTED * 3 + 2],
-										particleOpacity[INTERSECTED]];
-									break
-								case 5:
-									annotationFivePoints.push(intersects[i].index.toString() + ": " + particle_text);
-									particleColor[particle_mesg.split(':')[0] * 3] = annotationFiveColor.rgb()[0] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 1] = annotationFiveColor.rgb()[1] / 255;
-									particleColor[particle_mesg.split(':')[0] * 3 + 2] = annotationFiveColor.rgb()[2] / 255;
-									originalRGB = [particleColor[INTERSECTED * 3],
-										particleColor[INTERSECTED * 3 + 1],
-										particleColor[INTERSECTED * 3 + 2],
-										particleOpacity[INTERSECTED]];
-									break
-								default:
-									break
+				var particle_text = particleData[INTERSECTED].name;
+				var particle_pos = new THREE.Vector3(particlePositions[INTERSECTED*3],
+						particlePositions[INTERSECTED*3 + 1],
+						particlePositions[INTERSECTED*3 + 2]);
+
+				// A hacky solution to display multiple tokens
+				var particle_mesg = "";
+				if (displayMultiToken){
+					for (var i = 0; i < intersectsMultiTokens.length; i++) {
+						if (shiftPressed && availableIds[particleData[intersectsMultiTokens[i].index].id]
+								|| !shiftPressed){
+							if (particleWeight[intersectsMultiTokens[i].index] >= nodeWeightThreshold &&
+									particleConnectionWeight[intersectsMultiTokens[i].index]>= connWeightThreshold){
+
+								particle_mesg += "{" + particleData[intersectsMultiTokens[i].index].name + "}\n";
 							}
 						}
-                    }
-                }
-                else{
-                    if (INTERSECTED && annotationOn === -1){
-                        particleColor[INTERSECTED * 3] = originalRGB[0];
-                        particleColor[INTERSECTED * 3 + 1] = originalRGB[1];
-                        particleColor[INTERSECTED * 3 + 2] = originalRGB[2];
-                        particleOpacity[INTERSECTED] = originalRGB[3];
-                    } else if (annotationOn !== -1) {
-						particleColor[INTERSECTED * 3] = annotationOneColor.rgb()[0] / 255;
-						particleColor[INTERSECTED * 3 + 1] = annotationOneColor.rgb()[1] / 255;
-						particleColor[INTERSECTED * 3 + 2] = annotationOneColor.rgb()[2] / 255;
 					}
-                    INTERSECTED = null;
-                    hideTooltip();
-                }
+				}
+				else {
+					particle_mesg = intersects[i].index.toString() + ": " + particle_text;
+				}
+				showTooltip(particle_pos, particle_mesg);
 
-            }
-            
-            function showTooltip(objectPosition, text) {
-                var divElement = $("#tooltip");
+				// Check if annotation mode is on and add points to respective annotation group
+				if (annotationOn !== -1) {
+					switch (annotationOn) {
+						case 1:
+							for (var i = 0; i < annotationIntersects.length; i++) {
+								particleColor[annotationIntersects[i].index * 3] = annotationOneColor.rgb()[0] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 1] = annotationOneColor.rgb()[1] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 2] = annotationOneColor.rgb()[2] / 255;
+								annotationOnePoints.push(annotationIntersects[i].index.toString() + ": " + particleData[annotationIntersects[i].index].name);
+							}
 
-                divElement.css({
-                    display: "block",
-                    opacity: 0.0
-                });
+							originalRGB = [particleColor[INTERSECTED * 3],
+								particleColor[INTERSECTED * 3 + 1],
+								particleColor[INTERSECTED * 3 + 2],
+								particleOpacity[INTERSECTED]];
+							break
+						case 2:
+							for (var i = 0; i < annotationIntersects.length; i++) {
+								particleColor[annotationIntersects[i].index * 3] = annotationTwoColor.rgb()[0] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 1] = annotationTwoColor.rgb()[1] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 2] = annotationTwoColor.rgb()[2] / 255;
+								annotationTwoPoints.push(annotationIntersects[i].index.toString() + ": " + particleData[annotationIntersects[i].index].name);
+							}
 
-                var canvasHalfWidth = renderer.domElement.offsetWidth / 2;
-                var canvasHalfHeight = renderer.domElement.offsetHeight / 2;
+							originalRGB = [particleColor[INTERSECTED * 3],
+								particleColor[INTERSECTED * 3 + 1],
+								particleColor[INTERSECTED * 3 + 2],
+								particleOpacity[INTERSECTED]];
+							break
+						case 3:
+							for (var i = 0; i < annotationIntersects.length; i++) {
+								particleColor[annotationIntersects[i].index * 3] = annotationThreeColor.rgb()[0] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 1] = annotationThreeColor.rgb()[1] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 2] = annotationThreeColor.rgb()[2] / 255;
+								annotationThreePoints.push(annotationIntersects[i].index.toString() + ": " + particleData[annotationIntersects[i].index].name);
+							}
 
-                var tooltipPosition = objectPosition.clone().project(camera);
-                tooltipPosition.x = (tooltipPosition.x * canvasHalfWidth) + canvasHalfWidth + renderer.domElement.offsetLeft;
-                tooltipPosition.y = -(tooltipPosition.y * canvasHalfHeight) + canvasHalfHeight + renderer.domElement.offsetTop;
+							originalRGB = [particleColor[INTERSECTED * 3],
+								particleColor[INTERSECTED * 3 + 1],
+								particleColor[INTERSECTED * 3 + 2],
+								particleOpacity[INTERSECTED]];
+							break
+						case 4:
+							for (var i = 0; i < annotationIntersects.length; i++) {
+								particleColor[annotationIntersects[i].index * 3] = annotationFourColor.rgb()[0] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 1] = annotationFourColor.rgb()[1] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 2] = annotationFourColor.rgb()[2] / 255;
+								annotationFourPoints.push(annotationIntersects[i].index.toString() + ": " + particleData[annotationIntersects[i].index].name);
+							}
 
-                var tooltipWidth = divElement[0].offsetWidth;
-                var tooltipHeight = divElement[0].offsetHeight;
+							originalRGB = [particleColor[INTERSECTED * 3],
+								particleColor[INTERSECTED * 3 + 1],
+								particleColor[INTERSECTED * 3 + 2],
+								particleOpacity[INTERSECTED]];
+							break
+						case 5:
+							for (var i = 0; i < annotationIntersects.length; i++) {
+								particleColor[annotationIntersects[i].index * 3] = annotationFiveColor.rgb()[0] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 1] = annotationFiveColor.rgb()[1] / 255;
+								particleColor[annotationIntersects[i].index * 3 + 2] = annotationFiveColor.rgb()[2] / 255;
+								annotationFivePoints.push(annotationIntersects[i].index.toString() + ": " + particleData[annotationIntersects[i].index].name);
+							}
 
-                divElement.css({
-                    left: `${tooltipPosition.x + tooltipWidth / 4}px`,
-                    top: `${tooltipPosition.y + tooltipHeight / 4}px`
-                });
+							originalRGB = [particleColor[INTERSECTED * 3],
+								particleColor[INTERSECTED * 3 + 1],
+								particleColor[INTERSECTED * 3 + 2],
+								particleOpacity[INTERSECTED]];
+							break
+						default:
+							break
+					}
+				}
+			}
+		}
+		else{
+			if (INTERSECTED && annotationOn === -1){
+				particleColor[INTERSECTED * 3] = originalRGB[0];
+				particleColor[INTERSECTED * 3 + 1] = originalRGB[1];
+				particleColor[INTERSECTED * 3 + 2] = originalRGB[2];
+				particleOpacity[INTERSECTED] = originalRGB[3];
+			} else if (annotationOn !== -1) {
+				particleColor[INTERSECTED * 3] = annotationOneColor.rgb()[0] / 255;
+				particleColor[INTERSECTED * 3 + 1] = annotationOneColor.rgb()[1] / 255;
+				particleColor[INTERSECTED * 3 + 2] = annotationOneColor.rgb()[2] / 255;
+			}
+			INTERSECTED = null;
+			hideTooltip();
+		}
 
-                divElement.text(text);
-                divElement.css({opacity: 0.7});
-            }
+	}
 
-            function hideTooltip() {
-                var divElement = $("#tooltip");
-                if (divElement) {
-                    divElement.css({
-                        display: "none"
-                    });
-                }
-            }
+	function showTooltip(objectPosition, text) {
+		var divElement = $("#tooltip");
 
-            // Initialize all the data structures
-            // This function is necessary because it creates all the data structures
-            function initializeData() {
-                loadFullData([]);
-                loadMetaMain([]);
-                loadAnchor([]);
-            }
+		divElement.css({
+			display: "block",
+			opacity: 0.0
+		});
 
-            // This is the main data load function, calls three other load functions
-            function automaticLoadData(data_dir) {
+		var canvasHalfWidth = renderer.domElement.offsetWidth / 2;
+		var canvasHalfHeight = renderer.domElement.offsetHeight / 2;
 
-                // 1. Load full_data
-                getFileObject(data_dir + "meta-main.txt", function (metamain) {
-                    let reader = new FileReader();
+		var tooltipPosition = objectPosition.clone().project(camera);
+		tooltipPosition.x = (tooltipPosition.x * canvasHalfWidth) + canvasHalfWidth + renderer.domElement.offsetLeft;
+		tooltipPosition.y = -(tooltipPosition.y * canvasHalfHeight) + canvasHalfHeight + renderer.domElement.offsetTop;
 
-                    // Clear the scene
-                    scene.remove(scene.children[0]);
-                    group = new THREE.Group();
-                    scene.add(group); 
-                    // ===================
+		var tooltipWidth = divElement[0].offsetWidth;
+		var tooltipHeight = divElement[0].offsetHeight;
 
-                    reader.onload = (e) => {
-                        const file = e.target.result;
-                        var lines = file.split(/\r\n|\n/);
-                        lines = lines.slice(0, lines.length - 1);
-                        
-                        // Important initialization steps
-                        originAttr = lines[0]/1;
-                        // ===================
+		divElement.css({
+			left: `${tooltipPosition.x + tooltipWidth / 4}px`,
+			top: `${tooltipPosition.y + tooltipHeight / 4}px`
+		});
 
-                        loadMetaMain(lines);
+		divElement.text(text);
+		divElement.css({opacity: 0.7});
+	}
 
-                        // 2. Load meta-main, this is embedded because it needs originAttr to be assigned
-                        getFileObject(data_dir + "full_data", function (fulldata) {
-                            let reader = new FileReader();
-                            reader.onload = (e) => {
-                                    
-                                const file = e.target.result;
-                                var lines = file.split(/\r\n|\n/);
-                                lines = lines.slice(0, lines.length - 1);
+	function hideTooltip() {
+		var divElement = $("#tooltip");
+		if (divElement) {
+			divElement.css({
+				display: "none"
+			});
+		}
+	}
 
-                                loadFullData(lines);
+	// Initialize all the data structures
+	// This function is necessary because it creates all the data structures
+	function initializeData() {
+		loadFullData([]);
+		loadMetaMain([]);
+		loadAnchor([]);
+	}
 
-                                // 3. Load anchor points
-                                console.log(data_dir + originAttr.toString() +".txt");
-                                getFileObject(data_dir + originAttr.toString() +".txt", function (anchorData) {
-                                    let reader = new FileReader();
+	// This is the main data load function, calls three other load functions
+	function automaticLoadData(data_dir) {
 
-                                    reader.onload = (e) => {
-                                        const file = e.target.result;
-                                        var lines = file.split(/\r\n|\n/);
-                                        lines = lines.slice(0, lines.length - 1);
-                                        loadAnchor(lines);
-                                        //adjustGraphPos();
-                                    }
+		// 1. Load full_data
+		getFileObject(data_dir + "meta-main.txt", function (metamain) {
+			let reader = new FileReader();
 
-                                    var a = reader.readAsText(anchorData);
+			// Clear the scene
+			scene.remove(scene.children[0]);
+			group = new THREE.Group();
+			scene.add(group);
+			// ===================
 
-                                    //console.log(scene);
-                                });
+			reader.onload = (e) => {
+				const file = e.target.result;
+				var lines = file.split(/\r\n|\n/);
+				lines = lines.slice(0, lines.length - 1);
 
-                                // This is where UI elements dependent on the meta-main information are created
-                                // This exists because file reading is async
-                                if (chooseAnchorController) {
-                                    // console.log(chooseAnchorController.domElement.children[0].innerHTML);
+				// Important initialization steps
+				originAttr = lines[0]/1;
+				// ===================
 
-                                    var innerHTMLStr = "";
-                                    for(var i = 0; i < anchorList.length; i++){
-                                        var str = "<option value='" + anchorList[i] + "'>" + anchorList[i] + "</option>";
-                                        innerHTMLStr += str;        
-                                    }
+				loadMetaMain(lines);
 
-                                    if (innerHTMLStr != "") chooseAnchorController.domElement.children[0].innerHTML = innerHTMLStr;
+				// 2. Load meta-main, this is embedded because it needs originAttr to be assigned
+				getFileObject(data_dir + "full_data", function (fulldata) {
+					let reader = new FileReader();
+					reader.onload = (e) => {
+
+						const file = e.target.result;
+						var lines = file.split(/\r\n|\n/);
+						lines = lines.slice(0, lines.length - 1);
+
+						loadFullData(lines);
+
+						// 3. Load anchor points
+						console.log(data_dir + originAttr.toString() +".txt");
+						getFileObject(data_dir + originAttr.toString() +".txt", function (anchorData) {
+							let reader = new FileReader();
+
+							reader.onload = (e) => {
+								const file = e.target.result;
+								var lines = file.split(/\r\n|\n/);
+								lines = lines.slice(0, lines.length - 1);
+								loadAnchor(lines);
+								//adjustGraphPos();
+							}
+
+							var a = reader.readAsText(anchorData);
+
+							//console.log(scene);
+						});
+
+						// This is where UI elements dependent on the meta-main information are created
+						// This exists because file reading is async
+						if (chooseAnchorController) {
+							// console.log(chooseAnchorController.domElement.children[0].innerHTML);
+
+							var innerHTMLStr = "";
+							for(var i = 0; i < anchorList.length; i++){
+								var str = "<option value='" + anchorList[i] + "'>" + anchorList[i] + "</option>";
+								innerHTMLStr += str;
+							}
+
+							if (innerHTMLStr != "") chooseAnchorController.domElement.children[0].innerHTML = innerHTMLStr;
+						}
+						else {
+							const searchFolder = gui.addFolder('Search/Change Anchor')
+
+							// Search bar
+							searchFolder.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
+								console.log(searchedTerm);
+								console.log("current anchor list", anchorList);
+								const anchorResults = fuzzysort.go(searchedTerm, anchorList, {limit: 100, all: true, allowTypo: true});
+								const zoomResults = fuzzysort.go(searchedTerm, allPoints, {limit: 100, all: true, allowTypo: true});
+								searchAnchorList = anchorResults.map(x => x.target);
+								searchZoomList = zoomResults.map(x => x.target);
+								// searchFolder.remove(chooseAnchorController);
+								// searchFolder.remove(zoomController);
+								if (searchedTerm === "") {
+									searchAnchorList = anchorList;
+									searchZoomList = allPoints.slice(0,100);
 								}
-                                else {
-									const searchFolder = gui.addFolder('Search/Change Anchor')
+								// zoomController = searchFolder.add(GUIparam, 'zoomPoint', searchZoomList.slice(0, 100)).name('Zoom to Point').onChange(function(term){
+								// 	var zoomTerm = term.split(':')[0];
+								// 	zoomedTerm = zoomTerm;
+								// 	updatePtsColor();
+								// 	originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+								// 	originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+								// 	originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+								// 	camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+								// 	camera.updateProjectionMatrix();
+								// 	//camera.lookAt(0, 0, 0);
+								// 	//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+								// 	reAdjustGraphPos();
+								// });
+								//
+								// chooseAnchorController = searchFolder.add(GUIparam, 'selectAnchor', searchAnchorList).name('Select Anchor').onChange(function(){
+								// 	console.time("onChange of Search Anchor bar")
+								// 	var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
+								//
+								// 	console.log("start init dropdown LOADING " + id.toString());
+								//
+								// 	originAttr = id;
+								// 	getFileObject(traceDataDirectory + id.toString() +".txt", function (anchorData) {
+								// 		let reader = new FileReader();
+								//
+								// 		reader.onload = (e) => {
+								// 			const file = e.target.result;
+								// 			var lines = file.split(/\r\n|\n/);
+								// 			lines = lines.slice(0, lines.length - 1);
+								// 			loadAnchor(lines);
+								// 		}
+								//
+								// 		var a = reader.readAsText(anchorData);
+								// 		console.timeEnd("onChange of Search Anchor bar")
+								// 	});
+								// });
+								updateDropdown(zoomController, searchZoomList);
+								updateDropdown(chooseAnchorController, searchAnchorList);
 
-									// Search bar
-									searchFolder.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
-										console.log(searchedTerm);
-										console.log("current anchor list", anchorList);
-										const anchorResults = fuzzysort.go(searchedTerm, anchorList, {limit: 100, all: true, allowTypo: true});
-										const zoomResults = fuzzysort.go(searchedTerm, allPoints, {limit: 100, all: true, allowTypo: true});
-										searchAnchorList = anchorResults.map(x => x.target);
-										searchZoomList = zoomResults.map(x => x.target);
-										searchFolder.remove(chooseAnchorController);
-										searchFolder.remove(zoomController);
-										if (searchedTerm === "") {
-											searchAnchorList = anchorList;
-											searchZoomList = allPoints.slice(0,100);
-										}
-										zoomController = searchFolder.add(GUIparam, 'zoomPoint', searchZoomList.slice(0, 100)).name('Zoom to Point').onChange(function(term){
-											var zoomTerm = term.split(':')[0];
-											zoomedTerm = zoomTerm;
-											updatePtsColor();
-											originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
-											originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
-											originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
-											camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
-											camera.updateProjectionMatrix();
-											//camera.lookAt(0, 0, 0);
-											//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
-											reAdjustGraphPos();
-										});
+							});
 
-										chooseAnchorController = searchFolder.add(GUIparam, 'selectAnchor', searchAnchorList).name('Select Anchor').onChange(function(){
-											console.time("onChange of Search Anchor bar")
-											var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
+							// Jump to point dropdown
+							zoomController = searchFolder.add(GUIparam, 'zoomPoint', allPoints.slice(0, 100)).name('Zoom to Point').onChange(function(term){
+								var zoomTerm = term.split(':')[0];
+								zoomedTerm = zoomTerm;
+								updatePtsColor();
+								originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+								originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+								originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+								camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+								camera.updateProjectionMatrix();
+								//camera.lookAt(0, 0, 0);
+								//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+								reAdjustGraphPos();
+							});
 
-											console.log("start init dropdown LOADING " + id.toString());
+							// Change anchor dropdown
+							chooseAnchorController = searchFolder.add(GUIparam, 'selectAnchor', anchorList).name('Select Anchor').onChange(function(){
+								console.time("onChange of Original Anchor bar")
+								var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
 
-											originAttr = id;
-											getFileObject(traceDataDirectory + id.toString() +".txt", function (anchorData) {
-												let reader = new FileReader();
+								originAttr = id;
+								getFileObject(traceDataDirectory + id.toString() +".txt", function (anchorData) {
+									let reader = new FileReader();
 
-												reader.onload = (e) => {
-													const file = e.target.result;
-													var lines = file.split(/\r\n|\n/);
-													lines = lines.slice(0, lines.length - 1);
-													loadAnchor(lines);
-												}
+									reader.onload = (e) => {
+										const file = e.target.result;
+										var lines = file.split(/\r\n|\n/);
+										lines = lines.slice(0, lines.length - 1);
+										loadAnchor(lines);
+									}
 
-												var a = reader.readAsText(anchorData);
-												console.timeEnd("onChange of Search Anchor bar")
-											});
-										});
+									var a = reader.readAsText(anchorData);
+									console.timeEnd("onChange of Original Anchor bar")
+								});
+							});
 
-									});
-
-									// Jump to point dropdown
-									zoomController = searchFolder.add(GUIparam, 'zoomPoint', allPoints.slice(0, 100)).name('Zoom to Point').onChange(function(term){
-										var zoomTerm = term.split(':')[0];
-										zoomedTerm = zoomTerm;
-										updatePtsColor();
-										originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
-										originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
-										originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
-										camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
-										camera.updateProjectionMatrix();
-										//camera.lookAt(0, 0, 0);
-										//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
-										reAdjustGraphPos();
-									});
-
-									// Change anchor dropdown
-									chooseAnchorController = searchFolder.add(GUIparam, 'selectAnchor', anchorList).name('Select Anchor').onChange(function(){
-										console.time("onChange of Original Anchor bar")
-										var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
-
-                                        originAttr = id;
-                                        getFileObject(traceDataDirectory + id.toString() +".txt", function (anchorData) {
-                                            let reader = new FileReader();
-
-                                            reader.onload = (e) => {
-                                                const file = e.target.result;
-                                                var lines = file.split(/\r\n|\n/);
-                                                lines = lines.slice(0, lines.length - 1);
-                                                loadAnchor(lines);
-                                            }
-
-                                            var a = reader.readAsText(anchorData);
-											console.timeEnd("onChange of Original Anchor bar")
-                                        });
-                                    });
-
-									// Add annotation
-									var obj1 = { addAnnotations:function() {
+							// Add annotation
+							var obj1 = { addAnnotations:function() {
 									switch(numAnnotations) {
 										case 0:
 											const newAnnotationFolder1 = gui.addFolder('New Annotation 1');
@@ -783,22 +821,41 @@
 												newAnnotationFolder1.name = newAnnotationName;
 											});
 											newAnnotationFolder1.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
-												console.log(typeof colorVal);
 												annotationOneColor = chroma(colorVal);
-												console.log(annotationOneColor);
 												updatePtsColor();
 											});
 											newAnnotationFolder1.add(newAnnotationParam, 'annotationNotes').name('Annotation Notes');
 											newAnnotationFolder1.add(newAnnotationParam, 'annotationStartSelect').name('Start Selecting Points').onChange(function(startBool){
 												if (startBool === true) {
 													annotationOn = 1;
-													document.body.style.cursor = "help";
 												}
 												if (startBool === false) {
 													annotationOn = -1;
-													console.info(annotationOnePoints);
+													updateDropdown(annotationOneDropdown, annotationOnePoints);
 												}
 											});
+											newAnnotationFolder1.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
+												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											annotationOneDropdown = newAnnotationFolder1.add(newAnnotationParam, 'annotationSearch', annotationOnePoints).name('Points').onChange(function(term){
+												var zoomTerm = term.split(':')[0];
+												zoomedTerm = zoomTerm;
+												updatePtsColor();
+												originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+												originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+												originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+												camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												camera.updateProjectionMatrix();
+												//camera.lookAt(0, 0, 0);
+												//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												reAdjustGraphPos();
+											});
+											var removePointsOne = { removePoint:function() {
+												annotationOnePoints = annotationOnePoints.filter(item => !item.startsWith(zoomedTerm + ":"));
+												updateDropdown(annotationOneDropdown, annotationOnePoints);
+												updatePtsColor();
+											}};
+											newAnnotationFolder1.add(removePointsOne,'removePoint');
 											numAnnotations += 1;
 											break;
 										case 1:
@@ -807,7 +864,6 @@
 												newAnnotationFolder2.name = newAnnotationName;
 											});
 											newAnnotationFolder2.addColor(newAnnotationParam, 'annotationColor').name('Annotation Color').onFinishChange(function(colorVal){
-												console.log(typeof colorVal);
 												annotationTwoColor = chroma(colorVal);
 												console.log(annotationTwoColor);
 												updatePtsColor();
@@ -819,9 +875,31 @@
 												}
 												if (startBool === false) {
 													annotationOn = -1;
-													console.info(annotationTwoPoints);
+													updateDropdown(annotationTwoDropdown, annotationTwoPoints)
 												}
 											});
+											newAnnotationFolder2.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
+												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											annotationTwoDropdown = newAnnotationFolder2.add(newAnnotationParam, 'annotationSearch', annotationTwoPoints).name('Points').onChange(function(term){
+												var zoomTerm = term.split(':')[0];
+												zoomedTerm = zoomTerm;
+												updatePtsColor();
+												originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+												originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+												originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+												camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												camera.updateProjectionMatrix();
+												//camera.lookAt(0, 0, 0);
+												//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												reAdjustGraphPos();
+											});
+											var removePointsTwo = { removePoint:function() {
+													annotationTwoPoints = annotationTwoPoints.filter(item => !item.startsWith(zoomedTerm + ":"));
+													updateDropdown(annotationTwoDropdown, annotationTwoPoints);
+													updatePtsColor();
+												}};
+											newAnnotationFolder2.add(removePointsTwo,'removePoint');
 											numAnnotations += 1;
 											break;
 										case 2:
@@ -840,9 +918,31 @@
 												}
 												if (startBool === false) {
 													annotationOn = -1;
-													console.info(annotationThreePoints);
+													updateDropdown(annotationThreeDropdown, annotationThreePoints);
 												}
 											});
+											newAnnotationFolder3.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
+												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											annotationThreeDropdown = newAnnotationFolder3.add(newAnnotationParam, 'annotationSearch', annotationThreePoints).name('Points').onChange(function(term){
+												var zoomTerm = term.split(':')[0];
+												zoomedTerm = zoomTerm;
+												updatePtsColor();
+												originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+												originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+												originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+												camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												camera.updateProjectionMatrix();
+												//camera.lookAt(0, 0, 0);
+												//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												reAdjustGraphPos();
+											});
+											var removePointsThree = { removePoint:function() {
+													annotationThreePoints = annotationThreePoints.filter(item => !item.startsWith(zoomedTerm + ":"));
+													updateDropdown(annotationThreeDropdown, annotationThreePoints);
+													updatePtsColor();
+												}};
+											newAnnotationFolder3.add(removePointsThree,'removePoint');
 											numAnnotations += 1;
 											break;
 										case 3:
@@ -861,9 +961,31 @@
 												}
 												if (startBool === false) {
 													annotationOn = -1;
-													console.info(annotationFourPoints);
+													updateDropdown(annotationFourDropdown, annotationFourPoints);
 												}
 											});
+											newAnnotationFolder4.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
+												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											annotationFourDropdown = newAnnotationFolder4.add(newAnnotationParam, 'annotationSearch', annotationFourPoints).name('Points').onChange(function(term){
+												var zoomTerm = term.split(':')[0];
+												zoomedTerm = zoomTerm;
+												updatePtsColor();
+												originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+												originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+												originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+												camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												camera.updateProjectionMatrix();
+												//camera.lookAt(0, 0, 0);
+												//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												reAdjustGraphPos();
+											});
+											var removePointsFour = { removePoint:function() {
+													annotationFourPoints = annotationFourPoints.filter(item => !item.startsWith(zoomedTerm + ":"));
+													updateDropdown(annotationFourDropdown, annotationFourPoints);
+													updatePtsColor();
+												}};
+											newAnnotationFolder4.add(removePointsFour,'removePoint');
 											numAnnotations += 1;
 											break;
 										case 4:
@@ -884,401 +1006,423 @@
 												}
 												if (startBool === false) {
 													annotationOn = -1;
-													console.info(annotationFivePoints);
+													updateDropdown(annotationFiveDropdown, annotationFivePoints);
 												}
 											});
+											newAnnotationFolder5.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
+												raycasterAnnotations.params.Points.threshold = brushSize;
+											});
+											annotationFiveDropdown = newAnnotationFolder5.add(newAnnotationParam, 'annotationSearch', annotationFivePoints).name('Points').onChange(function(term){
+												var zoomTerm = term.split(':')[0];
+												zoomedTerm = zoomTerm;
+												updatePtsColor();
+												originX = particlePositions[ zoomTerm * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+												originY = particlePositions[ zoomTerm * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+												originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
+												camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												camera.updateProjectionMatrix();
+												//camera.lookAt(0, 0, 0);
+												//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
+												reAdjustGraphPos();
+											});
+											var removePointsFive = { removePoint:function() {
+													annotationFivePoints = annotationFivePoints.filter(item => !item.startsWith(zoomedTerm + ":"));
+													updateDropdown(annotationFiveDropdown, annotationFivePoints);
+													updatePtsColor();
+												}};
+											newAnnotationFolder5.add(removePointsFive,'removePoint');
 											numAnnotations += 1;
 											break;
 										default:
 											break;
 									}
-									}};
-									gui.add(obj1,'addAnnotations').name("Add Annotation");
+								}};
+							gui.add(obj1,'addAnnotations').name("Add Annotation");
 
 
-									/*  CHOOSING DATA TRACE, CURRENTLY NOT USED
-                                    dataTraceController = gui.add(GUIparam, 'selectTraceDataset', datasetList).name('Select Trace Dataset').onChange(function(){
-                                        traceDataDirectory = GUIparam.selectTraceDataset;
+							/*  CHOOSING DATA TRACE, CURRENTLY NOT USED
+                            dataTraceController = gui.add(GUIparam, 'selectTraceDataset', datasetList).name('Select Trace Dataset').onChange(function(){
+                                traceDataDirectory = GUIparam.selectTraceDataset;
 
-                                        var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
+                                var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
 
-                                        console.log("LOADING " + id.toString());
+                                console.log("LOADING " + id.toString());
 
-                                        originAttr = id;
-                                        getFileObject(traceDataDirectory + id.toString() +".txt",
-                                                            function (anchorData) {
-                                            let reader = new FileReader();
+                                originAttr = id;
+                                getFileObject(traceDataDirectory + id.toString() +".txt",
+                                                    function (anchorData) {
+                                    let reader = new FileReader();
 
-                                            reader.onload = (e) => {
-                                                const file = e.target.result;
-                                                var lines = file.split(/\r\n|\n/);
-                                                lines = lines.slice(0, lines.length - 1);
-                                                loadAnchor(lines);
-                                            }
+                                    reader.onload = (e) => {
+                                        const file = e.target.result;
+                                        var lines = file.split(/\r\n|\n/);
+                                        lines = lines.slice(0, lines.length - 1);
+                                        loadAnchor(lines);
+                                    }
 
-                                            var a = reader.readAsText(anchorData);
-                                        });
-                                    })
-                                    */
-                                }
-                            }
+                                    var a = reader.readAsText(anchorData);
+                                });
+                            })
+                            */
+						}
+					}
 
-                            var a = reader.readAsText(fulldata);
-                        }); 
-                    }
-
-                    var a = reader.readAsText(metamain);
-
-                });
-
-            }
-
-            // LOADING META_MAIN
-            function loadMetaMain(lines) {
-                anchorList = [];
-                availableIds = {};
-
-                for (var i = 1; i < lines.length; i++) {
-                    var ln = lines[i];
-                    var lnspl = ln.split(' ');
-                    
-                    anchorList = anchorList.concat(lnspl[0] + ": " + lnspl[1]);
-
-                    // TODO: We skipped size checking here, that means availableIds will have irrelevant data if point size is too big
-
-                    availableIds[lnspl[0]/1] = lnspl.slice(1).join(' ');
-                }
-
-
-                /* 
-                if (chooseAnchorController){
-                    chooseAnchorController = chooseAnchorController.options(anchorList);
-                }
-                */
-            }
-
-            // LOADING FULL DATA
-            function loadFullData(lines) {
-                maxParticleCount = lines.length / 2;
-
-                // ACHTUNG: THIS IS LIMITING THE NUMBER OF NODES 
-                if (maxParticleCount > 1000000)
-                    maxParticleCount = 1000000;
-
-                console.log("Number of points: " + maxParticleCount.toString());
-
-				const pMaterial = new THREE.ShaderMaterial( {
-                    uniforms: {
-                        scale: {type: 'f', value: window.innerHeight / 2}
-                    },
-
-                    vertexShader: document.getElementById( 'vertexshader-token' ).textContent,
-                    fragmentShader: document.getElementById( 'fragmentshader-token' ).textContent,
-                    
-					vertexColors:   true,
-                    blending:       THREE.CustomBlending,
-                    blendSrc:       THREE.SrcAlphaFactor,
-                    blendDst:       THREE.DstAlphaFactor,
-                    depthTest:      false,
-                    depthWrite:     true,
-                    transparent:    true
-				} );
-
-                particles = new THREE.BufferGeometry();
-                particlePositions = new Float32Array( maxParticleCount * 3 );
-                particleWeight = new Float32Array( maxParticleCount);
-                particleColor = new Float32Array( maxParticleCount * 3 );
-                particleOpacity = new Float32Array(maxParticleCount);
-                particleConnectionWeight = new Float32Array( maxParticleCount);
-                particleData.length = 0;
-
-                for ( let i = 0; i < maxParticleCount; i ++ ) {
-                    var wordContent = lines[i * 2];
-
-                    var wordGraphAttribute = lines[i * 2 + 1];
-                    wordGraphAttribute = wordGraphAttribute.split(new RegExp(/\s+/));
-					// changed the split above to be on any amount of whitespace (ie., tabs are fine too)
-
-                    const id = i;
-					const x = wordGraphAttribute[0]/1;
-					const y = wordGraphAttribute[1]/1;
-                    const z = wordGraphAttribute[2]/1;
-                    const nodeWeight = wordGraphAttribute[3]/1;
-
-					particlePositions[ i * 3 ] = x;
-					particlePositions[ i * 3 + 1 ] = y;
-                    particlePositions[ i * 3 + 2 ] = z;
-
-					// add it to the geometry
-					particleData.push( {
-                        id: id,
-                        name: wordContent
-                    } );
-
-                    // add point weight
-                    particleWeight[i] = nodeWeight;
-                    if (nodeWeight > topNodeWeight){
-                        topNodeWeight = nodeWeight;
-                    }
-
-                    if (id == originAttr){
-                        origini = id;
-
-                        if (firstFile){
-                            // We want this to be false after loading the first file so that the points dont shift around
-                            console.log(wordContent);
-							console.log(wordGraphAttribute);
-							firstFile = false;
-                            originX = particlePositions[ id * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
-                            originY = particlePositions[ id * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
-                            originZ = particlePositions[ id * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
-                        }
-                    }
-                }
-
-				console.log("--- befoiree SCALING FACTOR---")
-				console.info(particlePositions);
-                
-				particles.setAttribute( 'position', new THREE.BufferAttribute( particlePositions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
-				particles.setAttribute( 'color', new THREE.BufferAttribute( particleColor, 3 ).setUsage( THREE.DynamicDrawUsage ) );
-				particles.setAttribute( 'alpha', new THREE.BufferAttribute( particleOpacity, 1 ).setUsage( THREE.DynamicDrawUsage ) );
-
-
-				console.log("--- AFTER SCALING FACTOR---")
-				console.info(particlePositions);
-				console.info(particles.attributes.position);
-				// create the particle system
-                adjustGraphPos();
-
-                pointCloud = new THREE.Points( particles, pMaterial );
-				group.add( pointCloud );
-				allPoints = particleData.map(x => x.id + ": " + x.name);
-				console.info(particleData);
-            }
-            
-            // LOADING ANCHOR POINT
-            function loadAnchor(lines) {
-				console.time("loadAnchor")
-                // We want to adjust the position here, initiate all the colors etc.
-                // particleConnectionWeight = new Float32Array( maxParticleCount);
-                particleConnectionWeight.fill(0);
-
-				// possibly vectorize? instead of iterate over all lines, use a mapped function
-                for (let i = 0; i < lines.length; i++) {
-                    var lineData = lines[i].split(',');
-
-                    const id = lineData[0]/1;
-                    const edgeWeight = lineData[1]/1;
-                    
-                    if (id >= maxParticleCount){
-                        continue;
-                    }
-
-                    particleConnectionWeight[id] = edgeWeight;
-                    if (edgeWeight > topEdgeWeight){
-                        topEdgeWeight = edgeWeight;
-                    }
-                }
-
-
-                updatePtsColor();
-				console.timeEnd("loadAnchor")
-            }
-
-            // Adjust so that the origini is at the origin point
-            function adjustGraphPos() {
-				console.time("adjustGraphPos")
-                var scaleFactor = 10;
-
-				for ( let i = 0; i < maxParticleCount; i ++ ) {
-                    // ** Original point coordinate adjustment in deposit_reader.py **
-					particlePositions[ i * 3 ] *= SCALING_FACTOR_SLIME;
-					particlePositions[ i * 3 + 1 ] *= SCALING_FACTOR_SLIME;
-                    particlePositions[ i * 3 + 2 ] *= SCALING_FACTOR_SLIME;
-					particlePositions[ i * 3 ] -= GRID_MIN[0];
-					particlePositions[ i * 3 + 1 ] -= GRID_MIN[1];
-                    particlePositions[ i * 3 + 2 ] -= GRID_MIN[2];
-
-
-					particlePositions[ i * 3 ] -= originX;
-					particlePositions[ i * 3 + 1 ] -= originY;
-                    particlePositions[ i * 3 + 2 ] -= originZ;
-					particlePositions[ i * 3 ] *= scaleFactor;
-					particlePositions[ i * 3 + 1 ] *= scaleFactor;
-                    particlePositions[ i * 3 + 2 ] *= scaleFactor;
-                }
-				console.timeEnd("adjustGraphPos")
-            }
-
-			function reAdjustGraphPos() {
-				console.time("reAdjustGraphPos")
-				var scaleFactor = 0.1;
-
-				for ( let i = 0; i < maxParticleCount; i ++ ) {
-					// ** Original point coordinate adjustment in deposit_reader.py **
-					particlePositions[ i * 3 ] *= SCALING_FACTOR_SLIME;
-					particlePositions[ i * 3 + 1 ] *= SCALING_FACTOR_SLIME;
-					particlePositions[ i * 3 + 2 ] *= SCALING_FACTOR_SLIME;
-					particlePositions[ i * 3 ] -= GRID_MIN[0];
-					particlePositions[ i * 3 + 1 ] -= GRID_MIN[1];
-					particlePositions[ i * 3 + 2 ] -= GRID_MIN[2];
-
-
-					particlePositions[ i * 3 ] -= originX;
-					particlePositions[ i * 3 + 1 ] -= originY;
-					particlePositions[ i * 3 + 2 ] -= originZ;
-					particlePositions[ i * 3 ] *= scaleFactor;
-					particlePositions[ i * 3 + 1 ] *= scaleFactor;
-					particlePositions[ i * 3 + 2 ] *= scaleFactor;
-				}
-				console.timeEnd("reAdjustGraphPos")
+					var a = reader.readAsText(fulldata);
+				});
 			}
 
-            // Update the color value for all points
-            function updatePtsColor() {
-				console.time("updatePtsColor")
-                for (let i = 0; i < maxParticleCount; i++) {
-                    if ((particleWeight[i] < nodeWeightThreshold ||
-                        particleConnectionWeight[i] < connWeightThreshold)
-                        && 
-                        (!availableIds[particleData[i].id] || !alwaysAnchor)) { 
-                        // Hide the point if below minimum weight
-                        particleColor[ i * 3 ] = 0.0;
-                        particleColor[ i * 3 + 1 ] = 0.0;
-                        particleColor[ i * 3 + 2] = 0.0;
-                        particleOpacity[i] = 0.0;
-                    } 
-                    else {
-                        if (particleData[i].id == originAttr) { // Color for origin point
-                            particleColor[ i * 3 ] = originRGB.rgb()[0] / 255;
-                            particleColor[ i * 3 + 1 ] = originRGB.rgb()[1] / 255;
-                            particleColor[ i * 3 + 2 ] = originRGB.rgb()[2] / 255;
-                            particleOpacity[i] = 1.0;
-                        }
-                        else if (availableIds[particleData[i].id]) { // Change color if the point can be navigated
-                            particleColor[ i * 3 ] = navigableRGB.rgb()[0] / 255;
-                            particleColor[ i * 3 + 1 ] = navigableRGB.rgb()[1] / 255;
-                            particleColor[ i * 3 + 2 ] = navigableRGB.rgb()[2] / 255;
-                            particleOpacity[i] = 1.0;
-                        }
-                        else {
-                            var ratio = Math.pow(particleConnectionWeight[i] / topEdgeWeight, colorRatioPow);
-							var mypos = particleData[i].name.split('_')[1];
-                            var finalColor;
-                            switch (colorMode) {
-                                // Change color based on slime connection
-								// Cache all possible hsl values, save in a lookup table, and use those
-								// compute the RBG values once and simply look it up as needed
-								// discretize the ratios (small enough for no one to see difference)
-                                case "slime connect":
-                                    finalColor = chroma.mix(farthestRGB, closestRGB, ratio, 'hsl').rgb();
-                                    break;
+			var a = reader.readAsText(metamain);
 
-                                // Change color based on the part of speech
-                                case "part of speech":
-                                    finalColor = posColorMap[mypos].rgb();
-                                    break;
-                            }
+		});
 
-                            particleColor[ i * 3 ] = finalColor[0] / 255;
-                            particleColor[ i * 3 + 1 ] = finalColor[1] / 255;
-                            particleColor[ i * 3 + 2 ] = finalColor[2] / 255;
+	}
 
-                            particleOpacity[i] = (1 - opacityTuning) + opacityTuning * particleConnectionWeight[i] / topEdgeWeight;
+	// LOADING META_MAIN
+	function loadMetaMain(lines) {
+		anchorList = [];
+		availableIds = {};
 
-                            if (mypos == filterPOS ||
-                                (filterPOS == 'NOUN+VERB+ADJ+ADV' && (
-                                     mypos == 'NOUN' ||
-                                     mypos == 'VERB' ||
-                                     mypos == 'ADJ' || 
-                                     mypos == 'ADV'
-                                    ))) {
-                                particleOpacity[i] = 1;
-                            }
+		for (var i = 1; i < lines.length; i++) {
+			var ln = lines[i];
+			var lnspl = ln.split(' ');
 
-                            // lower the opacity drastically if shift is pressed
-                            if (shiftPressed && shiftDim && availableIds[particleData[i].id] == undefined) {
-                                particleColor[ i * 3 ] *= 0.2;
-                                particleOpacity[i] *= 0.2;
-                            }
+			anchorList = anchorList.concat(lnspl[0] + ": " + lnspl[1]);
 
-                            // lower the opacity drastically if POS is filtered
-                            if ((filterPOS != "None" && filterPOS != 'NOUN+VERB+ADJ+ADV' && mypos != filterPOS) ||
-                                (filterPOS == 'NOUN+VERB+ADJ+ADV' && 
-                                     mypos != 'NOUN' && 
-                                     mypos != 'VERB' &&
-                                     mypos != 'ADJ' && 
-                                     mypos != 'ADV'
-                                    )){
-                                particleColor[ i * 3 ] *= 0.3;
-                                particleColor[ i * 3 + 1 ] *= 0.3;
-                                particleColor[ i * 3 + 2 ] *= 0.3;
-                                particleOpacity[i] *= 0.3;
-                            } 
-                        }
-                    }
-                }
+			// TODO: We skipped size checking here, that means availableIds will have irrelevant data if point size is too big
 
-				if (zoomedTerm) {
-					console.log(zoomedTerm);
-					particleColor[ zoomedTerm * 3 ] = zoomedPoint.rgb()[0] / 255;
-					particleColor[ zoomedTerm * 3 + 1 ] = zoomedPoint.rgb()[1] / 255;
-					particleColor[ zoomedTerm * 3 + 2] = zoomedPoint.rgb()[2] / 255;
-					particleOpacity[zoomedTerm] = 100.0;
-				}
+			availableIds[lnspl[0]/1] = lnspl.slice(1).join(' ');
+		}
 
-				if (showAnnotations) {
-					for (let i = 0; i < annotationOnePoints.length; i++) {
-						particleColor[annotationOnePoints[i].split(':')[0] * 3] = annotationOneColor.rgb()[0] / 255;
-						particleColor[annotationOnePoints[i].split(':')[0] * 3 + 1] = annotationOneColor.rgb()[1] / 255;
-						particleColor[annotationOnePoints[i].split(':')[0] * 3 + 2] = annotationOneColor.rgb()[2] / 255;
-					}
-					for (let i = 0; i < annotationTwoPoints.length; i++) {
-						particleColor[annotationTwoPoints[i].split(':')[0] * 3] = annotationTwoColor.rgb()[0] / 255;
-						particleColor[annotationTwoPoints[i].split(':')[0] * 3 + 1] = annotationTwoColor.rgb()[1] / 255;
-						particleColor[annotationTwoPoints[i].split(':')[0] * 3 + 2] = annotationTwoColor.rgb()[2] / 255;
-					}
-					for (let i = 0; i < annotationThreePoints.length; i++) {
-						particleColor[annotationThreePoints[i].split(':')[0] * 3] = annotationThreeColor.rgb()[0] / 255;
-						particleColor[annotationThreePoints[i].split(':')[0] * 3 + 1] = annotationThreeColor.rgb()[1] / 255;
-						particleColor[annotationThreePoints[i].split(':')[0] * 3 + 2] = annotationThreeColor.rgb()[2] / 255;
-					}
-					for (let i = 0; i < annotationFourPoints.length; i++) {
-						particleColor[annotationFourPoints[i].split(':')[0] * 3] = annotationFourColor.rgb()[0] / 255;
-						particleColor[annotationFourPoints[i].split(':')[0] * 3 + 1] = annotationFourColor.rgb()[1] / 255;
-						particleColor[annotationFourPoints[i].split(':')[0] * 3 + 2] = annotationFourColor.rgb()[2] / 255;
-					}
-					for (let i = 0; i < annotationFivePoints.length; i++) {
-						particleColor[annotationFivePoints[i].split(':')[0] * 3] = annotationFiveColor.rgb()[0] / 255;
-						particleColor[annotationFivePoints[i].split(':')[0] * 3 + 1] = annotationFiveColor.rgb()[1] / 255;
-						particleColor[annotationFivePoints[i].split(':')[0] * 3 + 2] = annotationFiveColor.rgb()[2] / 255;
-					}
-				}
 
-				console.timeEnd("updatePtsColor")
-            }
+		/*
+        if (chooseAnchorController){
+            chooseAnchorController = chooseAnchorController.options(anchorList);
+        }
+        */
+	}
 
-			// Update dropdown
-			function updateDropdown(target, list){
-				var innerHTMLStr = "";
-				for(var i=0; i<list.length; i++){
-					var str = "<option value='" + list[i] + "'>" + list[i] + "</option>";
-					innerHTMLStr += str;
-				}
+	// LOADING FULL DATA
+	function loadFullData(lines) {
+		maxParticleCount = lines.length / 2;
 
-				if (innerHTMLStr != "") target.domElement.children[0].innerHTML = innerHTMLStr;
+		// ACHTUNG: THIS IS LIMITING THE NUMBER OF NODES
+		if (maxParticleCount > 1000000)
+			maxParticleCount = 1000000;
+
+		console.log("Number of points: " + maxParticleCount.toString());
+
+		const pMaterial = new THREE.ShaderMaterial( {
+			uniforms: {
+				scale: {type: 'f', value: window.innerHeight / 2}
+			},
+
+			vertexShader: document.getElementById( 'vertexshader-token' ).textContent,
+			fragmentShader: document.getElementById( 'fragmentshader-token' ).textContent,
+
+			vertexColors:   true,
+			blending:       THREE.CustomBlending,
+			blendSrc:       THREE.SrcAlphaFactor,
+			blendDst:       THREE.DstAlphaFactor,
+			depthTest:      false,
+			depthWrite:     true,
+			transparent:    true
+		} );
+
+		particles = new THREE.BufferGeometry();
+		particlePositions = new Float32Array( maxParticleCount * 3 );
+		particleWeight = new Float32Array( maxParticleCount);
+		particleColor = new Float32Array( maxParticleCount * 3 );
+		particleOpacity = new Float32Array(maxParticleCount);
+		particleConnectionWeight = new Float32Array( maxParticleCount);
+		particleData.length = 0;
+
+		for ( let i = 0; i < maxParticleCount; i ++ ) {
+			var wordContent = lines[i * 2];
+
+			var wordGraphAttribute = lines[i * 2 + 1];
+			wordGraphAttribute = wordGraphAttribute.split(new RegExp(/\s+/));
+			// changed the split above to be on any amount of whitespace (ie., tabs are fine too)
+
+			const id = i;
+			const x = wordGraphAttribute[0]/1;
+			const y = wordGraphAttribute[1]/1;
+			const z = wordGraphAttribute[2]/1;
+			const nodeWeight = wordGraphAttribute[3]/1;
+
+			particlePositions[ i * 3 ] = x;
+			particlePositions[ i * 3 + 1 ] = y;
+			particlePositions[ i * 3 + 2 ] = z;
+
+			// add it to the geometry
+			particleData.push( {
+				id: id,
+				name: wordContent
+			} );
+
+			// add point weight
+			particleWeight[i] = nodeWeight;
+			if (nodeWeight > topNodeWeight){
+				topNodeWeight = nodeWeight;
 			}
 
-			// Annotation Class
-			class Annotation {
-				constructor(name, color, notes){
-					this.name = name;
-					this.color = color;
-					this.notes = notes;
-					this.points = [];
+			if (id == originAttr){
+				origini = id;
+
+				if (firstFile){
+					// We want this to be false after loading the first file so that the points dont shift around
+					console.log(wordContent);
+					console.log(wordGraphAttribute);
+					firstFile = false;
+					originX = particlePositions[ id * 3 ] * SCALING_FACTOR_SLIME - GRID_MIN[0];
+					originY = particlePositions[ id * 3 + 1 ] * SCALING_FACTOR_SLIME - GRID_MIN[1];
+					originZ = particlePositions[ id * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
 				}
 			}
+		}
 
-		</script>
-	</body>
+		console.log("--- befoiree SCALING FACTOR---")
+		console.info(particlePositions);
+
+		particles.setAttribute( 'position', new THREE.BufferAttribute( particlePositions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
+		particles.setAttribute( 'color', new THREE.BufferAttribute( particleColor, 3 ).setUsage( THREE.DynamicDrawUsage ) );
+		particles.setAttribute( 'alpha', new THREE.BufferAttribute( particleOpacity, 1 ).setUsage( THREE.DynamicDrawUsage ) );
+
+
+		console.log("--- AFTER SCALING FACTOR---")
+		console.info(particlePositions);
+		console.info(particles.attributes.position);
+		// create the particle system
+		adjustGraphPos();
+
+		pointCloud = new THREE.Points( particles, pMaterial );
+		group.add( pointCloud );
+		allPoints = particleData.map(x => x.id + ": " + x.name);
+		console.info(particleData);
+	}
+
+	// LOADING ANCHOR POINT
+	function loadAnchor(lines) {
+		console.time("loadAnchor")
+		// We want to adjust the position here, initiate all the colors etc.
+		// particleConnectionWeight = new Float32Array( maxParticleCount);
+		particleConnectionWeight.fill(0);
+
+		// possibly vectorize? instead of iterate over all lines, use a mapped function
+		for (let i = 0; i < lines.length; i++) {
+			var lineData = lines[i].split(',');
+
+			const id = lineData[0]/1;
+			const edgeWeight = lineData[1]/1;
+
+			if (id >= maxParticleCount){
+				continue;
+			}
+
+			particleConnectionWeight[id] = edgeWeight;
+			if (edgeWeight > topEdgeWeight){
+				topEdgeWeight = edgeWeight;
+			}
+		}
+
+
+		updatePtsColor();
+		console.timeEnd("loadAnchor")
+	}
+
+	// Adjust so that the origini is at the origin point
+	function adjustGraphPos() {
+		console.time("adjustGraphPos")
+		var scaleFactor = 10;
+
+		for ( let i = 0; i < maxParticleCount; i ++ ) {
+			// ** Original point coordinate adjustment in deposit_reader.py **
+			particlePositions[ i * 3 ] *= SCALING_FACTOR_SLIME;
+			particlePositions[ i * 3 + 1 ] *= SCALING_FACTOR_SLIME;
+			particlePositions[ i * 3 + 2 ] *= SCALING_FACTOR_SLIME;
+			particlePositions[ i * 3 ] -= GRID_MIN[0];
+			particlePositions[ i * 3 + 1 ] -= GRID_MIN[1];
+			particlePositions[ i * 3 + 2 ] -= GRID_MIN[2];
+
+
+			particlePositions[ i * 3 ] -= originX;
+			particlePositions[ i * 3 + 1 ] -= originY;
+			particlePositions[ i * 3 + 2 ] -= originZ;
+			particlePositions[ i * 3 ] *= scaleFactor;
+			particlePositions[ i * 3 + 1 ] *= scaleFactor;
+			particlePositions[ i * 3 + 2 ] *= scaleFactor;
+		}
+		console.timeEnd("adjustGraphPos")
+	}
+
+	function reAdjustGraphPos() {
+		console.time("reAdjustGraphPos")
+		var scaleFactor = 0.1;
+
+		for ( let i = 0; i < maxParticleCount; i ++ ) {
+			// ** Original point coordinate adjustment in deposit_reader.py **
+			particlePositions[ i * 3 ] *= SCALING_FACTOR_SLIME;
+			particlePositions[ i * 3 + 1 ] *= SCALING_FACTOR_SLIME;
+			particlePositions[ i * 3 + 2 ] *= SCALING_FACTOR_SLIME;
+			particlePositions[ i * 3 ] -= GRID_MIN[0];
+			particlePositions[ i * 3 + 1 ] -= GRID_MIN[1];
+			particlePositions[ i * 3 + 2 ] -= GRID_MIN[2];
+
+
+			particlePositions[ i * 3 ] -= originX;
+			particlePositions[ i * 3 + 1 ] -= originY;
+			particlePositions[ i * 3 + 2 ] -= originZ;
+			particlePositions[ i * 3 ] *= scaleFactor;
+			particlePositions[ i * 3 + 1 ] *= scaleFactor;
+			particlePositions[ i * 3 + 2 ] *= scaleFactor;
+		}
+		console.timeEnd("reAdjustGraphPos")
+	}
+
+	// Update the color value for all points
+	function updatePtsColor() {
+		console.time("updatePtsColor")
+		for (let i = 0; i < maxParticleCount; i++) {
+			if ((particleWeight[i] < nodeWeightThreshold ||
+							particleConnectionWeight[i] < connWeightThreshold)
+					&&
+					(!availableIds[particleData[i].id] || !alwaysAnchor)) {
+				// Hide the point if below minimum weight
+				particleColor[ i * 3 ] = 0.0;
+				particleColor[ i * 3 + 1 ] = 0.0;
+				particleColor[ i * 3 + 2] = 0.0;
+				particleOpacity[i] = 0.0;
+			}
+			else {
+				if (particleData[i].id == originAttr) { // Color for origin point
+					particleColor[ i * 3 ] = originRGB.rgb()[0] / 255;
+					particleColor[ i * 3 + 1 ] = originRGB.rgb()[1] / 255;
+					particleColor[ i * 3 + 2 ] = originRGB.rgb()[2] / 255;
+					particleOpacity[i] = 1.0;
+				}
+				else if (availableIds[particleData[i].id]) { // Change color if the point can be navigated
+					particleColor[ i * 3 ] = navigableRGB.rgb()[0] / 255;
+					particleColor[ i * 3 + 1 ] = navigableRGB.rgb()[1] / 255;
+					particleColor[ i * 3 + 2 ] = navigableRGB.rgb()[2] / 255;
+					particleOpacity[i] = 1.0;
+				}
+				else {
+					var ratio = Math.pow(particleConnectionWeight[i] / topEdgeWeight, colorRatioPow);
+					var mypos = particleData[i].name.split('_')[1];
+					var finalColor;
+					switch (colorMode) {
+							// Change color based on slime connection
+							// Cache all possible hsl values, save in a lookup table, and use those
+							// compute the RBG values once and simply look it up as needed
+							// discretize the ratios (small enough for no one to see difference)
+						case "slime connect":
+							finalColor = chroma.mix(farthestRGB, closestRGB, ratio, 'hsl').rgb();
+							break;
+
+							// Change color based on the part of speech
+						case "part of speech":
+							finalColor = posColorMap[mypos].rgb();
+							break;
+					}
+
+					particleColor[ i * 3 ] = finalColor[0] / 255;
+					particleColor[ i * 3 + 1 ] = finalColor[1] / 255;
+					particleColor[ i * 3 + 2 ] = finalColor[2] / 255;
+
+					particleOpacity[i] = (1 - opacityTuning) + opacityTuning * particleConnectionWeight[i] / topEdgeWeight;
+
+					if (mypos == filterPOS ||
+							(filterPOS == 'NOUN+VERB+ADJ+ADV' && (
+									mypos == 'NOUN' ||
+									mypos == 'VERB' ||
+									mypos == 'ADJ' ||
+									mypos == 'ADV'
+							))) {
+						particleOpacity[i] = 1;
+					}
+
+					// lower the opacity drastically if shift is pressed
+					if (shiftPressed && shiftDim && availableIds[particleData[i].id] == undefined) {
+						particleColor[ i * 3 ] *= 0.2;
+						particleOpacity[i] *= 0.2;
+					}
+
+					// lower the opacity drastically if POS is filtered
+					if ((filterPOS != "None" && filterPOS != 'NOUN+VERB+ADJ+ADV' && mypos != filterPOS) ||
+							(filterPOS == 'NOUN+VERB+ADJ+ADV' &&
+									mypos != 'NOUN' &&
+									mypos != 'VERB' &&
+									mypos != 'ADJ' &&
+									mypos != 'ADV'
+							)){
+						particleColor[ i * 3 ] *= 0.3;
+						particleColor[ i * 3 + 1 ] *= 0.3;
+						particleColor[ i * 3 + 2 ] *= 0.3;
+						particleOpacity[i] *= 0.3;
+					}
+				}
+			}
+		}
+
+		if (zoomedTerm) {
+			console.log(zoomedTerm);
+			particleColor[ zoomedTerm * 3 ] = zoomedPoint.rgb()[0] / 255;
+			particleColor[ zoomedTerm * 3 + 1 ] = zoomedPoint.rgb()[1] / 255;
+			particleColor[ zoomedTerm * 3 + 2] = zoomedPoint.rgb()[2] / 255;
+			particleOpacity[zoomedTerm] = 100.0;
+		}
+
+		if (showAnnotations) {
+			for (let i = 0; i < annotationOnePoints.length; i++) {
+				particleColor[annotationOnePoints[i].split(':')[0] * 3] = annotationOneColor.rgb()[0] / 255;
+				particleColor[annotationOnePoints[i].split(':')[0] * 3 + 1] = annotationOneColor.rgb()[1] / 255;
+				particleColor[annotationOnePoints[i].split(':')[0] * 3 + 2] = annotationOneColor.rgb()[2] / 255;
+			}
+			for (let i = 0; i < annotationTwoPoints.length; i++) {
+				particleColor[annotationTwoPoints[i].split(':')[0] * 3] = annotationTwoColor.rgb()[0] / 255;
+				particleColor[annotationTwoPoints[i].split(':')[0] * 3 + 1] = annotationTwoColor.rgb()[1] / 255;
+				particleColor[annotationTwoPoints[i].split(':')[0] * 3 + 2] = annotationTwoColor.rgb()[2] / 255;
+			}
+			for (let i = 0; i < annotationThreePoints.length; i++) {
+				particleColor[annotationThreePoints[i].split(':')[0] * 3] = annotationThreeColor.rgb()[0] / 255;
+				particleColor[annotationThreePoints[i].split(':')[0] * 3 + 1] = annotationThreeColor.rgb()[1] / 255;
+				particleColor[annotationThreePoints[i].split(':')[0] * 3 + 2] = annotationThreeColor.rgb()[2] / 255;
+			}
+			for (let i = 0; i < annotationFourPoints.length; i++) {
+				particleColor[annotationFourPoints[i].split(':')[0] * 3] = annotationFourColor.rgb()[0] / 255;
+				particleColor[annotationFourPoints[i].split(':')[0] * 3 + 1] = annotationFourColor.rgb()[1] / 255;
+				particleColor[annotationFourPoints[i].split(':')[0] * 3 + 2] = annotationFourColor.rgb()[2] / 255;
+			}
+			for (let i = 0; i < annotationFivePoints.length; i++) {
+				particleColor[annotationFivePoints[i].split(':')[0] * 3] = annotationFiveColor.rgb()[0] / 255;
+				particleColor[annotationFivePoints[i].split(':')[0] * 3 + 1] = annotationFiveColor.rgb()[1] / 255;
+				particleColor[annotationFivePoints[i].split(':')[0] * 3 + 2] = annotationFiveColor.rgb()[2] / 255;
+			}
+		}
+
+		console.timeEnd("updatePtsColor")
+	}
+
+	// Update dropdown
+	function updateDropdown(target, list){
+		var innerHTMLStr = "";
+		for(var i=0; i<list.length; i++){
+			var str = "<option value='" + list[i] + "'>" + list[i] + "</option>";
+			innerHTMLStr += str;
+		}
+
+		if (innerHTMLStr != "") target.domElement.children[0].innerHTML = innerHTMLStr;
+	}
+
+	// Annotation Class
+	class Annotation {
+		constructor(name, color, notes){
+			this.name = name;
+			this.color = color;
+			this.notes = notes;
+			this.points = [];
+		}
+	}
+
+</script>
+</body>
 </html>
