@@ -5,7 +5,7 @@
 	<title>Polyglot</title>
 	<style>
 		html {
-			cursor: url("cursor 120x120.svg") 20 20, auto;
+			cursor: url("cursor 40x40.svg") 20 20, auto;
 		}
 		body {
 			margin: 0;
@@ -34,17 +34,20 @@
 	<script type="x-shader/x-fragment" id="vertexshader-token">
             attribute float alpha;
             uniform float scale;
+            attribute float size;
 
             varying vec3 gcolor;
             varying float galpha;
+            varying float gsize;
             void main() {
                 vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
                 gl_Position = projectionMatrix * mvPosition;
 
-                gl_PointSize = 5.0 * scale / length(mvPosition.xyz); // Adjust point size here!
+                gl_PointSize = size * 5.0 * scale / length(mvPosition.xyz); // Adjust point size here!
 
                 gcolor = color;
                 galpha = alpha;
+                gsize = size;
             }
         </script>
 	<script type="x-shader/x-fragment" id="fragmentshader-token">
@@ -62,7 +65,6 @@
                 gl_FragColor = vec4(gcolor -  distance / 40.0, galpha);
             }
         </script>
-
 </head>
 <body>
 <div id="tooltip"></div>
@@ -162,6 +164,7 @@
 	let particlePositions;
 	let particleColor;
 	let particleOpacity;
+	let particleSize;
 	let allPoints;
 	let topEdgeWeight = -1;
 	let topNodeWeight = -1;
@@ -185,6 +188,8 @@
 	// Allow linear intepolation between two colors based on distance
 	var closestRGB = chroma('#f2190a');
 	var farthestRGB = chroma('#293366');
+	var closestRGBGrayscale = chroma('#4a4a4a');
+	var farthestRGBGrayscale = chroma('#000000');
 	var originRGB = chroma([224, 144, 154]);
 	var navigableRGB = chroma('#f7e968');
 	var zoomedPoint = chroma('#00ff22');
@@ -204,6 +209,7 @@
 	var colorRatioPow = 0.5;
 	var opacityTuning = 0.4;
 	var navigationMode = false;
+	var grayScaleBool = false;
 	var numAnnotations = 0;
 	var annotationOn = -1; // equals -1 when no annotation mode is on and equals [1, 5] if a certain annotation mode is on
 	var showAnnotations = true;
@@ -292,7 +298,8 @@
 			'selectTraceDataset': traceDataDirectory,
 			'textField': "",
 			'zoomPoint':"",
-			'showAnnotations': true
+			'showAnnotations': true,
+			'grayScale': false
 		};
 
 		newAnnotationParam = {
@@ -359,6 +366,11 @@
 
 		gui.add(GUIparam, 'showAnnotations').name('ShowAnnotations').onChange(function(showAnnotationsBool){
 			showAnnotations = showAnnotationsBool;
+			updatePtsColor();
+		})
+
+		gui.add(GUIparam, 'grayScale').name('grayScale').onChange(function(usergrayScaleBool){
+			grayScaleBool = usergrayScaleBool;
 			updatePtsColor();
 		})
 
@@ -435,7 +447,7 @@
 		pointCloud.geometry.attributes.position.needsUpdate = true;
 		pointCloud.geometry.attributes.color.needsUpdate = true;
 		pointCloud.geometry.attributes.alpha.needsUpdate = true;
-
+		pointCloud.geometry.attributes.size.needsUpdate = true;
 		requestAnimationFrame( animate );
 
 		render();
@@ -848,8 +860,22 @@
 													updateDropdown(annotationOneDropdown, annotationOnePoints);
 												}
 											});
-											newAnnotationFolder1.add(newAnnotationParam, 'annotationBrushSize', 0.5, 5).name('Brush Size').onChange(function(brushSize){
+											newAnnotationFolder1.add(newAnnotationParam, 'annotationBrushSize', 0.5, 7).name('Brush Size').onChange(function(brushSize){
 												raycasterAnnotations.params.Points.threshold = brushSize;
+												if (brushSize >= 5.0) {
+													console.log("bigger than 5.0")
+													var elementToChange = document.getElementsByTagName("html")[0];
+													elementToChange.style.cursor = "url(\"cursor 80 x 80.svg\") 40 40, auto";
+												} else if (brushSize < 2.5) {
+													console.log("smaller than 2.5")
+													var elementToChange = document.getElementsByTagName("html")[0];
+													elementToChange.style.cursor = "url(\"cursor 40x40.svg\") 20 20, auto";
+												} else {
+													console.log("between 2.5 and 5")
+													var elementToChange = document.getElementsByTagName("html")[0];
+													elementToChange.style.cursor = "url(\"cursor 60x60.svg\") 30 30, auto";
+												}
+												console.log("changed anyway")
 											});
 											annotationOneDropdown = newAnnotationFolder1.add(newAnnotationParam, 'annotationSearch', annotationOnePoints).name('Points').onChange(function(term){
 												var zoomTerm = term.split(':')[0];
@@ -1143,7 +1169,6 @@
                                 originAttr = id;
                                 getFileObject(traceDataDirectory + id.toString() +".txt",
                                                     function (anchorData) {
-
                                     let reader = new FileReader();
 
                                     reader.onload = (e) => {
@@ -1202,8 +1227,6 @@
 		if (maxParticleCount > 1000000)
 			maxParticleCount = 1000000;
 
-		console.log("Number of points: " + maxParticleCount.toString());
-
 		const pMaterial = new THREE.ShaderMaterial( {
 			uniforms: {
 				scale: {type: 'f', value: window.innerHeight / 2}
@@ -1226,6 +1249,9 @@
 		particleWeight = new Float32Array( maxParticleCount);
 		particleColor = new Float32Array( maxParticleCount * 3 );
 		particleOpacity = new Float32Array(maxParticleCount);
+		particleSize = new Float32Array(maxParticleCount).fill(0.75);
+		//for (let i=18700/2; i<maxParticleCount; ++i) particleSize[i] = 2;
+		console.info(particleSize);
 		particleConnectionWeight = new Float32Array( maxParticleCount);
 		particleData.length = 0;
 
@@ -1233,7 +1259,8 @@
 			var wordContent = lines[i * 2];
 
 			var wordGraphAttribute = lines[i * 2 + 1];
-			wordGraphAttribute = wordGraphAttribute.split(new RegExp(/\s+/));
+			const splitOn = new RegExp(/\s+/);
+			wordGraphAttribute = wordGraphAttribute.split(splitOn);
 			// changed the split above to be on any amount of whitespace (ie., tabs are fine too)
 
 			const id = i;
@@ -1273,17 +1300,14 @@
 			}
 		}
 
-		console.log("--- befoiree SCALING FACTOR---")
 		console.info(particlePositions);
 
 		particles.setAttribute( 'position', new THREE.BufferAttribute( particlePositions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
 		particles.setAttribute( 'color', new THREE.BufferAttribute( particleColor, 3 ).setUsage( THREE.DynamicDrawUsage ) );
 		particles.setAttribute( 'alpha', new THREE.BufferAttribute( particleOpacity, 1 ).setUsage( THREE.DynamicDrawUsage ) );
+		particles.setAttribute( 'size', new THREE.BufferAttribute(particleSize, 1));
 
-
-		console.log("--- AFTER SCALING FACTOR---")
-		console.info(particlePositions);
-		console.info(particles.attributes.position);
+		console.info(particles);
 		// create the particle system
 		adjustGraphPos();
 
@@ -1291,7 +1315,15 @@
 		group.add( pointCloud );
 		allPoints = particleData.map(x => x.id + ": " + x.name);
 		console.info(particleData);
+
+		const sizeAttribute = pointCloud.geometry.getAttribute("size");
+		console.info(sizeAttribute);
 	}
+
+	// function updateSizeByYear(year) {
+	// 	particles.getAttribute()
+	//
+	// }
 
 	// LOADING ANCHOR POINT
 	function loadAnchor(lines) {
@@ -1408,7 +1440,11 @@
 							// compute the RBG values once and simply look it up as needed
 							// discretize the ratios (small enough for no one to see difference)
 						case "slime connect":
-							finalColor = chroma.mix(farthestRGB, closestRGB, ratio, 'hsl').rgb();
+							if (grayScaleBool === false) {
+								finalColor = chroma.mix(farthestRGB, closestRGB, ratio, 'hsl').rgb();
+							} else {
+								finalColor = chroma.mix(farthestRGBGrayscale, closestRGBGrayscale, ratio, 'hsl').rgb();
+							}
 							break;
 
 							// Change color based on the part of speech
