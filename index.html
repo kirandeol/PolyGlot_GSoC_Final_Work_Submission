@@ -242,6 +242,8 @@
 	var old_points_years = [0];
 	var currentYear = 1;
 	var timeScaler = 1000;
+	var minYear;
+	var maxYear;
 
 	// actual calls
 	init();
@@ -729,9 +731,7 @@
 							// change to num years
 							years_header = this.responseText.split(/\n/)[0].split(/,/);
 							full_years_arr = this.responseText.split(/\n/);
-							console.log(years_header);
-							console.log(full_years_arr.length);
-							console.log(full_years_arr);
+
 
 							for (i = 1; i < full_years_arr.length; i++) {
 								var temp_row = full_years_arr[i].split(/,/);
@@ -740,8 +740,138 @@
 								years[temp_key] = temp_scores;
 								points_with_years.push(temp_key);
 							}
-							console.log("YEARS: ", years);
-							console.log("points_with_years: ", points_with_years);
+
+							if (yearsBool) {
+								// gui.add(GUIparam, 'timeSize', 1, 10000).name("Time Size").onChange(function(val){
+								// 	timeScaler = val;
+								// 	var val_in_years = Object.keys(years).includes(currentYear.toString());
+								// 	if (val_in_years) {
+								// 		var docs_for_new_year = years[currentYear];
+								// 		console.log(docs_for_new_year);
+								// 		for (let i = 0; i < docs_for_new_year.length; i++) {
+								// 			var current_doc = docs_for_new_year[i];
+								// 			console.log(current_doc);
+								// 			var file_name = dataDirectory + "years/doc_anchor_files/" + current_doc.toString() + '.txt';
+								// 			console.log(file_name);
+								// 			var req = new XMLHttpRequest();
+								// 			req.onload = function() {
+								// 				var lines = this.responseText.split(/\n/);
+								// 				for (let j = 0; j < lines.length; j++) {
+								// 					var split_lines = lines[j].match(/^(\S+)\s(.*)/).slice(1)
+								// 					var particle_index = split_lines[0];
+								// 					var if_idf = split_lines[1];
+								// 					// normalize across years too
+								// 					// try making them all opaque for now (order indepdent opacity)
+								// 					particleOpacity[particle_index] = 1;
+								// 					particleSize[particle_index] = if_idf/val; // make this scaler a parameter for user
+								// 					old_points_years.push(particle_index);
+								// 					var noChange = old_points_years.includes(particle_index.toString());
+								// 					if (noChange) {
+								// 						for (var i = old_points_years.length - 1; i >= 0; i--) {
+								// 							if (old_points_years[i] === particle_index.toString()) {
+								// 								old_points_years.splice(i, 1);
+								// 							}
+								// 						}
+								// 					}
+								// 				}
+								// 			}
+								// 			req.open("GET", file_name);
+								// 			req.send();
+								// 		}
+								// 		for (let k = 0; k < old_points_years.length; k++) {
+								// 			particleSize[old_points_years[k]] = 1
+								// 		}
+								// 		old_points_years = [];
+								// 	}
+								// });
+								// Adding years slider
+								// gui.add(GUIparam, 'year', 1980, 2000).step(0.1).onChange(function(val) {
+								// 	// add another slider to control overall point size
+								//
+								// 	// try to not refresh while we do this update (ie. dont show the points shrinking to 1)
+								// 	// or set up a separate array for particle size computation
+								// 	var tempCheck = [];
+								// 	//old_points_years = [];
+								//
+								// 	var val_in_years = Object.keys(years).includes(val.toString());
+								// 	console.log("Object.values(years)", Object.keys(years));
+								// 	console.log("--- val_in_years--- ", val_in_years);
+								// 	if (val_in_years) {
+								// 		currentYear = val;
+								// 		var docs_for_new_year = years[val];
+								// 		console.log(docs_for_new_year);
+								// 		for (let i = 0; i < docs_for_new_year.length; i++) {
+								// 			var current_doc = docs_for_new_year[i];
+								// 			console.log(current_doc);
+								// 			var file_name = dataDirectory + "years/doc_anchor_files/" + current_doc.toString() + '.txt';
+								// 			console.log(file_name);
+								// 			var req = new XMLHttpRequest();
+								// 			req.onload = function() {
+								// 				var lines = this.responseText.split(/\n/);
+								// 				for (let j = 0; j < lines.length; j++) {
+								// 					var split_lines = lines[j].match(/^(\S+)\s(.*)/).slice(1)
+								// 					var particle_index = split_lines[0];
+								// 					var if_idf = split_lines[1];
+								// 					console.log(particle_index, if_idf);
+								// 					// normalize across years too
+								// 					// try making them all opaque for now (order indepdent opacity)
+								// 					particleOpacity[particle_index] = 1;
+								// 					particleSize[particle_index] = if_idf/timeScaler; // make this scaler a parameter for user
+								// 					tempCheck.push(particle_index);
+								// 				}
+								// 			}
+								// 			req.open("GET", file_name);
+								// 			req.send();
+								// 		}
+								//
+								// 		for (let k = 0; k < old_points_years.length; k++) {
+								// 			var inSide = tempCheck.includes(old_points_years[k]);
+								// 			if (inSide) {
+								//
+								// 			} else {
+								// 				particleSize[old_points_years[k]] = 1
+								// 			}
+								// 		}
+								// 	}
+								//
+								// } );
+
+								// add boundary data points (esp for end year)
+								// when we see null at boundary, assume it is the same as previous value instead (if case)
+								// to fix tool tip, add toggle such that we can only see anchor points
+								minYear = parseFloat(years_header[2]);
+								maxYear = parseFloat(years_header[years_header.length - 1]);
+								console.info(minYear);
+								console.info(maxYear);
+								gui.add(GUIparam, 'year', minYear, maxYear).step(0.00001).onChange(function(val) {
+									var lwr_year = Math.floor(val);
+									var uppr_year = Math.ceil(val);
+									var fraction = val - Math.floor(val)
+									var year_index = lwr_year - minYear;
+
+									for (var word_index = 0; word_index < points_with_years.length; word_index++) {
+										if (uppr_year >= maxYear) {
+											var uppr_year_index = year_index
+										} else {
+											var uppr_year_index = year_index + 1
+										}
+										var lwr_year_imp = years[points_with_years[word_index]][year_index];
+										var uppr_year_imp = years[points_with_years[word_index]][uppr_year_index];
+										var imp = (1 - fraction) * lwr_year_imp + fraction * uppr_year_imp;
+										particleSize[points_with_years[word_index]] = imp;
+
+									}
+
+
+								} );
+
+								var obj2 = { resetSizes:function(){
+										for (let k = 0; k < maxParticleCount; k++) {
+											particleSize[k] = 1
+										}
+									}};
+								gui.add(obj2,'resetSizes').name('resetSizes');
+							}
 
 						}
 						req.open("GET", dataDirectory + "years/if_idf_scores_fill_with_zeros.csv");
@@ -1196,132 +1326,6 @@
 								window.open(encodedUri);
 							}};
 							gui.add(exportAnnot, 'exportAnn').name("ExportAnnotations");
-
-
-							// TIME SCALING FEATURES
-
-							if (yearsBool) {
-								// gui.add(GUIparam, 'timeSize', 1, 10000).name("Time Size").onChange(function(val){
-								// 	timeScaler = val;
-								// 	var val_in_years = Object.keys(years).includes(currentYear.toString());
-								// 	if (val_in_years) {
-								// 		var docs_for_new_year = years[currentYear];
-								// 		console.log(docs_for_new_year);
-								// 		for (let i = 0; i < docs_for_new_year.length; i++) {
-								// 			var current_doc = docs_for_new_year[i];
-								// 			console.log(current_doc);
-								// 			var file_name = dataDirectory + "years/doc_anchor_files/" + current_doc.toString() + '.txt';
-								// 			console.log(file_name);
-								// 			var req = new XMLHttpRequest();
-								// 			req.onload = function() {
-								// 				var lines = this.responseText.split(/\n/);
-								// 				for (let j = 0; j < lines.length; j++) {
-								// 					var split_lines = lines[j].match(/^(\S+)\s(.*)/).slice(1)
-								// 					var particle_index = split_lines[0];
-								// 					var if_idf = split_lines[1];
-								// 					// normalize across years too
-								// 					// try making them all opaque for now (order indepdent opacity)
-								// 					particleOpacity[particle_index] = 1;
-								// 					particleSize[particle_index] = if_idf/val; // make this scaler a parameter for user
-								// 					old_points_years.push(particle_index);
-								// 					var noChange = old_points_years.includes(particle_index.toString());
-								// 					if (noChange) {
-								// 						for (var i = old_points_years.length - 1; i >= 0; i--) {
-								// 							if (old_points_years[i] === particle_index.toString()) {
-								// 								old_points_years.splice(i, 1);
-								// 							}
-								// 						}
-								// 					}
-								// 				}
-								// 			}
-								// 			req.open("GET", file_name);
-								// 			req.send();
-								// 		}
-								// 		for (let k = 0; k < old_points_years.length; k++) {
-								// 			particleSize[old_points_years[k]] = 1
-								// 		}
-								// 		old_points_years = [];
-								// 	}
-								// });
-								// Adding years slider
-								// gui.add(GUIparam, 'year', 1980, 2000).step(0.1).onChange(function(val) {
-								// 	// add another slider to control overall point size
-								//
-								// 	// try to not refresh while we do this update (ie. dont show the points shrinking to 1)
-								// 	// or set up a separate array for particle size computation
-								// 	var tempCheck = [];
-								// 	//old_points_years = [];
-								//
-								// 	var val_in_years = Object.keys(years).includes(val.toString());
-								// 	console.log("Object.values(years)", Object.keys(years));
-								// 	console.log("--- val_in_years--- ", val_in_years);
-								// 	if (val_in_years) {
-								// 		currentYear = val;
-								// 		var docs_for_new_year = years[val];
-								// 		console.log(docs_for_new_year);
-								// 		for (let i = 0; i < docs_for_new_year.length; i++) {
-								// 			var current_doc = docs_for_new_year[i];
-								// 			console.log(current_doc);
-								// 			var file_name = dataDirectory + "years/doc_anchor_files/" + current_doc.toString() + '.txt';
-								// 			console.log(file_name);
-								// 			var req = new XMLHttpRequest();
-								// 			req.onload = function() {
-								// 				var lines = this.responseText.split(/\n/);
-								// 				for (let j = 0; j < lines.length; j++) {
-								// 					var split_lines = lines[j].match(/^(\S+)\s(.*)/).slice(1)
-								// 					var particle_index = split_lines[0];
-								// 					var if_idf = split_lines[1];
-								// 					console.log(particle_index, if_idf);
-								// 					// normalize across years too
-								// 					// try making them all opaque for now (order indepdent opacity)
-								// 					particleOpacity[particle_index] = 1;
-								// 					particleSize[particle_index] = if_idf/timeScaler; // make this scaler a parameter for user
-								// 					tempCheck.push(particle_index);
-								// 				}
-								// 			}
-								// 			req.open("GET", file_name);
-								// 			req.send();
-								// 		}
-								//
-								// 		for (let k = 0; k < old_points_years.length; k++) {
-								// 			var inSide = tempCheck.includes(old_points_years[k]);
-								// 			if (inSide) {
-								//
-								// 			} else {
-								// 				particleSize[old_points_years[k]] = 1
-								// 			}
-								// 		}
-								// 	}
-								//
-								// } );
-
-								gui.add(GUIparam, 'year', 1980, 2000).step(0.00001).onChange(function(val) {
-									var lwr_year = Math.floor(val);
-									var uppr_year = Math.ceil(val);
-									var fraction = val - Math.floor(val)
-									var year_index = lwr_year - 1980;
-
-									for (var word_index = 0; word_index < points_with_years.length; word_index++) {
-										var lwr_year_imp = years[points_with_years[word_index]][year_index];
-										var uppr_year_imp = years[points_with_years[word_index]][year_index + 1];
-										var imp = (1 - fraction) * lwr_year_imp + fraction * uppr_year_imp;
-										particleSize[points_with_years[word_index]] = imp;
-
-									}
-
-
-								} );
-
-								var obj2 = { resetSizes:function(){
-										for (let k = 0; k < maxParticleCount; k++) {
-											particleSize[k] = 1
-										}
-									}};
-								gui.add(obj2,'resetSizes').name('resetSizes');
-							}
-
-
-
 
 							/*  CHOOSING DATA TRACE, CURRENTLY NOT USED
                             dataTraceController = gui.add(GUIparam, 'selectTraceDataset', datasetList).name('Select Trace Dataset').onChange(function(){
