@@ -1,4 +1,8 @@
-# Polyglot: Bio-inspired Visual Analysis of Language Embedding Data
+# Google Summer of Code Final Work Submission
+
+This is a COPY of the PolyGlot repository, meant to isolate all Google Summer of Code related commits.
+
+Polyglot: Bio-inspired Visual Analysis of Language Embedding Data
 
 [![](image/1_tool_overview.PNG)](image/1_tool_overview.PNG)
 
