@@ -1,6 +1,6 @@
 # Google Summer of Code Final Work Submission
 
-This is a COPY of the PolyGlot repository, meant to isolate all Google Summer of Code related commits.
+This is a COPY of the PolyGlot repository, meant to isolate all Google Summer of Code related commits (from June 2023 to September 2023).
 
 Polyglot: Bio-inspired Visual Analysis of Language Embedding Data
 
