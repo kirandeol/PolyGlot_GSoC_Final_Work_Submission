@@ -2,7 +2,8 @@
 
 This is a COPY of the PolyGlot repository, meant to isolate all Google Summer of Code related commits (from June 2023 to September 2023). To see the active PolyGlot repository, click here: [https://github.com/PolyPhyHub/PolyGlot](https://github.com/PolyPhyHub/PolyGlot).
 
-In addition, I have uploaded .py files containing the code used for preprocessing Lautonomy's data. The original work was done on Google Colab, but to hide outputs and protect their original dataset, I have uploaded the code as a set of .py files. Nonetheless, seeing the code itself may be useful to others curious about Polyglot. Open the "GSoC_Lautonomy_Colab_Code" folder to access them.
+
+In addition, I have uploaded .py files containing the code used for preprocessing Lautonomy's data. The original work was done on Google Colab, but to hide outputs and protect their original dataset, I have uploaded the code as a set of .py files. Nonetheless, seeing the code itself may be useful to others curious about Polyglot. Open the "GSoC_Lautonomy_Colab_Code" folder to access them. However, the code used in developing the timeline feature is displayed in its original notebook for anyone curious about the methodology behind the timeline feature. 
 
 Polyglot: Bio-inspired Visual Analysis of Language Embedding Data
 
