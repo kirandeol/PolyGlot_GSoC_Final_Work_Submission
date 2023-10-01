@@ -27,6 +27,7 @@ The main results are summarized as follows:
 *Timeline feature. Yellow points are those for which timeline importance is computed. Size is relative to importance.*
 
 3. Run time improvements, a grayscale mode
+[![](gsoc_images/grascale_feat.png)](gsoc_images/grascale_feat.png)
   
 4. An industrial collaboration with UK startup Lautonomy, where we have pre-processed and entered their data into Polyglot
 [![](gsoc_images/lautonomy_data.png)](gsoc_images/lautonomy_data.png)
