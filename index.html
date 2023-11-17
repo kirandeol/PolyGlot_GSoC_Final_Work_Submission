@@ -146,7 +146,7 @@
 	var searchAnchorList = ["0: also_ADV", "918: right_NOUN"];
 	var searchZoomList = ["0: also_ADV", "918: right_NOUN"];
 	var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/Lautonomy_Data/"];
-	let traceDataDirectory = "data/global_1/";
+	let traceDataDirectory = "data/global_1/"; // CONTROLS WHICH DATASET TO LOAD WITH!!
 	var dataTraceController;
 
 	// change initial dataset if music == true, modified for quick access to music embedding
@@ -161,6 +161,7 @@
 	const particleData = [];
 	let particles;
 	let particleConnectionWeight;
+	let particleHighDimConnectionWeight;
 	let particleWeight;
 	let particlePositions;
 	let particleColor;
@@ -171,6 +172,7 @@
 	let topNodeWeight = -1;
 	let nodeWeightThreshold = 0; // Use this to filter out low weight nodes
 	let connWeightThreshold = 0; // Use this to filter out low slime mold connection
+	let connWeightHighDimThreshold = 0;
 
 	let availableIds = {}; // List of IDs available, each entry is in format [id, info]
 
@@ -301,6 +303,7 @@
 			'colorRatioPow': 0.5,
 			'nodeWeightThreshold': 0,
 			'particleConnectionWeight': 0,
+			'particleHighDimConnectionWeight': 0,
 			'opacityTuning': 0.4,
 			'shiftDim': true,
 			'displayMultiToken': false,
@@ -330,7 +333,7 @@
 
 		})
 
-		var colorModeList = ["slime connect", "part of speech"];
+		var colorModeList = ["slime connect", "part of speech", "high dimension"];
 
 		gui.add(GUIparam, 'colorMode', colorModeList).name('Color Mode').onChange(function(){
 			colorMode = GUIparam.colorMode;
@@ -355,8 +358,13 @@
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'particleConnectionWeight', 0, 70000).name('Lowest Connect').onChange(function(){
+		gui.add(GUIparam, 'particleConnectionWeight', 0, 100000).name('Lowest Connect').onChange(function(){
 			connWeightThreshold = GUIparam.particleConnectionWeight;
+			updatePtsColor();
+		})
+
+		gui.add(GUIparam, 'particleHighDimConnectionWeight', 0, 100000).name('Lowest HD Connect').onChange(function(){
+			connWeightHighDimThreshold = GUIparam.particleHighDimConnectionWeight;
 			updatePtsColor();
 		})
 
@@ -438,6 +446,23 @@
 
 							var a = reader.readAsText(anchorData);
 						});
+				getFileObject(dataDirectory + 'sim_scores/' + particleData[INTERSECTED].id.toString() +".txt",
+						function (anchorData) {
+							let reader = new FileReader();
+
+							reader.onload = (e) => {
+								const file = e.target.result;
+								var lines = file.split(/\r\n|\n/);
+								lines = lines.slice(0, lines.length - 1);
+								loadHighDimAnchor(lines);
+								var anchorName = particleData[INTERSECTED].id.toString() + ": " + particleData[INTERSECTED].name.toString();
+								anchorList.unshift(anchorName);
+								updateDropdown(chooseAnchorController, anchorList);
+							}
+
+
+							var a = reader.readAsText(anchorData);
+						});
 			}
 		}
 	}
@@ -502,7 +527,8 @@
 						|| !shiftPressed){
 					if (
 							(particleWeight[intersects[i].index] >= nodeWeightThreshold &&
-									particleConnectionWeight[intersects[i].index]>= connWeightThreshold)
+									particleConnectionWeight[intersects[i].index]>= connWeightThreshold &&
+										particleHighDimConnectionWeight[intersects[i].index] >= connWeightHighDimThreshold)
 							||
 							(availableIds[particleData[intersects[i].index].id] && alwaysAnchor)
 					){
@@ -543,7 +569,8 @@
 						if (shiftPressed && availableIds[particleData[intersectsMultiTokens[i].index].id]
 								|| !shiftPressed){
 							if (particleWeight[intersectsMultiTokens[i].index] >= nodeWeightThreshold &&
-									particleConnectionWeight[intersectsMultiTokens[i].index]>= connWeightThreshold){
+									particleConnectionWeight[intersectsMultiTokens[i].index]>= connWeightThreshold &&
+									particleHighDimConnectionWeight[intersectsMultiTokens[i].index] >= connWeightHighDimThreshold){
 
 								particle_mesg += "{" + particleData[intersectsMultiTokens[i].index].name + "}\n";
 							}
@@ -688,6 +715,7 @@
 		loadFullData([]);
 		loadMetaMain([]);
 		loadAnchor([]);
+		loadHighDimAnchor([]);
 	}
 
 	// This is the main data load function, calls three other load functions
@@ -898,6 +926,22 @@
 							//console.log(scene);
 						});
 
+						getFileObject(data_dir + 'sim_scores/' + originAttr.toString() +".txt", function (anchorData) {
+							let reader = new FileReader();
+
+							reader.onload = (e) => {
+								const file = e.target.result;
+								var lines = file.split(/\r\n|\n/);
+								lines = lines.slice(0, lines.length - 1);
+								loadHighDimAnchor(lines);
+								//adjustGraphPos();
+							}
+
+							var a = reader.readAsText(anchorData);
+
+							//console.log(scene);
+						});
+
 
 						// This is where UI elements dependent on the meta-main information are created
 						// This exists because file reading is async
@@ -979,6 +1023,8 @@
 								originZ = particlePositions[ zoomTerm * 3 + 2 ] * SCALING_FACTOR_SLIME - GRID_MIN[2];
 								camera.position.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
 								camera.updateProjectionMatrix();
+								//render();
+								controls.update();
 								//camera.lookAt(0, 0, 0);
 								//controls.target.set(particlePositions[zoomTerm*3], particlePositions[zoomTerm*3 + 1], particlePositions[zoomTerm*3 + 2]);
 								reAdjustGraphPos();
@@ -1001,7 +1047,22 @@
 									}
 
 									var a = reader.readAsText(anchorData);
+								});
+
+								getFileObject(traceDataDirectory + 'sim_scores/' + id.toString() +".txt", function (anchorData) {
+									let reader = new FileReader();
+
+									reader.onload = (e) => {
+										const file = e.target.result;
+										var lines = file.split(/\r\n|\n/);
+										lines = lines.slice(0, lines.length - 1);
+										loadHighDimAnchor(lines);
+									}
+
+									var a = reader.readAsText(anchorData);
 									console.timeEnd("onChange of Original Anchor bar")
+									console.log("changed high dims")
+
 								});
 							});
 
@@ -1070,10 +1131,10 @@
 												updateDropdown(annotationOneDropdown, annotationOneResults);
 											});
 											var removePointsOne = { removePoint:function() {
-												annotationOnePoints = annotationOnePoints.filter(item => !item.startsWith(zoomedTerm + ":"));
-												updateDropdown(annotationOneDropdown, annotationOnePoints);
-												updatePtsColor();
-											}};
+													annotationOnePoints = annotationOnePoints.filter(item => !item.startsWith(zoomedTerm + ":"));
+													updateDropdown(annotationOneDropdown, annotationOnePoints);
+													updatePtsColor();
+												}};
 											newAnnotationFolder1.add(removePointsOne,'removePoint');
 											numAnnotations += 1;
 											break;
@@ -1307,24 +1368,24 @@
 							gui.add(obj1,'addAnnotations').name("Add Annotation");
 
 							var exportAnnot = {exportAnn:function() {
-								var annotationOnePointsString = annotationOnePoints.join();
-								var annotationTwoPointsString = annotationTwoPoints.join();
-								var annotationThreePointsString = annotationThreePoints.join();
-								var annotationFourPointsString = annotationFourPoints.join();
-								var annotationFivePointsString = annotationFivePoints.join();
-								const rows = [
-									["ANNOTATION NAME", "ANNOTATION NOTES", "ANNOTATION POINTS"],
-									[annotationOneName[0], annotationOneNotes[0], annotationOnePointsString],
-									[annotationTwoName[0], annotationTwoNotes[0], annotationTwoPointsString],
-									[annotationThreeName[0], annotationThreeNotes[0], annotationThreePointsString],
-									[annotationFourName[0], annotationFourNotes[0], annotationFourPointsString],
-									[annotationFiveName[0], annotationFiveNotes[0], annotationFivePointsString]
-								];
-								let csvContent = "data:text/csv;charset=utf-8,"
-										+ rows.map(e => e.join(",")).join("\n");
-								var encodedUri = encodeURI(csvContent);
-								window.open(encodedUri);
-							}};
+									var annotationOnePointsString = annotationOnePoints.join();
+									var annotationTwoPointsString = annotationTwoPoints.join();
+									var annotationThreePointsString = annotationThreePoints.join();
+									var annotationFourPointsString = annotationFourPoints.join();
+									var annotationFivePointsString = annotationFivePoints.join();
+									const rows = [
+										["ANNOTATION NAME", "ANNOTATION NOTES", "ANNOTATION POINTS"],
+										[annotationOneName[0], annotationOneNotes[0], annotationOnePointsString],
+										[annotationTwoName[0], annotationTwoNotes[0], annotationTwoPointsString],
+										[annotationThreeName[0], annotationThreeNotes[0], annotationThreePointsString],
+										[annotationFourName[0], annotationFourNotes[0], annotationFourPointsString],
+										[annotationFiveName[0], annotationFiveNotes[0], annotationFivePointsString]
+									];
+									let csvContent = "data:text/csv;charset=utf-8,"
+											+ rows.map(e => e.join(",")).join("\n");
+									var encodedUri = encodeURI(csvContent);
+									window.open(encodedUri);
+								}};
 							gui.add(exportAnnot, 'exportAnn').name("ExportAnnotations");
 
 							/*  CHOOSING DATA TRACE, CURRENTLY NOT USED
@@ -1422,6 +1483,7 @@
 		for (let i=296630-2; i<maxParticleCount; ++i) particleSize[i] = 20;
 		console.info(particleSize);
 		particleConnectionWeight = new Float32Array( maxParticleCount);
+		particleHighDimConnectionWeight = new Float32Array( maxParticleCount);
 		particleData.length = 0;
 
 		for ( let i = 0; i < maxParticleCount; i ++ ) {
@@ -1496,10 +1558,10 @@
 
 	// LOADING ANCHOR POINT
 	function loadAnchor(lines) {
-		console.time("loadAnchor")
 		// We want to adjust the position here, initiate all the colors etc.
 		// particleConnectionWeight = new Float32Array( maxParticleCount);
 		particleConnectionWeight.fill(0);
+
 
 		// possibly vectorize? instead of iterate over all lines, use a mapped function
 		for (let i = 0; i < lines.length; i++) {
@@ -1507,10 +1569,6 @@
 
 			const id = lineData[0]/1;
 			const edgeWeight = lineData[1]/1;
-
-			if (id >= maxParticleCount){
-				continue;
-			}
 
 			particleConnectionWeight[id] = edgeWeight;
 			if (edgeWeight > topEdgeWeight){
@@ -1520,7 +1578,31 @@
 
 
 		updatePtsColor();
-		console.timeEnd("loadAnchor")
+	}
+
+	// LOADING HIGH DIM ANCHOR
+	function loadHighDimAnchor(lines) {
+		// We want to adjust the position here, initiate all the colors etc.
+		// particleConnectionWeight = new Float32Array( maxParticleCount);
+		// Lines is the anchor file (e.g., anchor = 0, then lines is 0.txt)
+		particleHighDimConnectionWeight.fill(0);
+		console.log("loadingHighDimData: ", lines.length)
+
+		// possibly vectorize? instead of iterate over all lines, use a mapped function
+		for (let i = 0; i < lines.length; i++) {
+			var lineData = lines[i].split(',');
+
+			const id = lineData[0]/1;
+			const edgeWeight = lineData[1]/1;
+
+			particleHighDimConnectionWeight[id] = edgeWeight;
+			if (edgeWeight > topEdgeWeight){
+				topEdgeWeight = edgeWeight;
+			}
+		}
+
+
+		updatePtsColor();
 	}
 
 	// Adjust so that the origini is at the origin point
@@ -1574,10 +1656,10 @@
 
 	// Update the color value for all points
 	function updatePtsColor() {
-		console.time("updatePtsColor")
 		for (let i = 0; i < maxParticleCount; i++) {
 			if ((particleWeight[i] < nodeWeightThreshold ||
-							particleConnectionWeight[i] < connWeightThreshold)
+							particleConnectionWeight[i] < connWeightThreshold ||
+								particleHighDimConnectionWeight[i] < connWeightHighDimThreshold)
 					&&
 					(!availableIds[particleData[i].id] || !alwaysAnchor)) {
 				// Hide the point if below minimum weight
@@ -1601,6 +1683,7 @@
 				}
 				else {
 					var ratio = Math.pow(particleConnectionWeight[i] / topEdgeWeight, colorRatioPow);
+					var highDimRatio = Math.pow(particleHighDimConnectionWeight[i] / topEdgeWeight, colorRatioPow);
 					var mypos = particleData[i].name.split('_')[1];
 					var finalColor;
 					switch (colorMode) {
@@ -1619,6 +1702,15 @@
 							// Change color based on the part of speech
 						case "part of speech":
 							finalColor = posColorMap[mypos].rgb();
+							break;
+
+						case "high dimension":
+							//particleHighDimConnectionWeight
+							if (grayScaleBool === false) {
+								finalColor = chroma.mix(farthestRGB, closestRGB, highDimRatio, 'hsl').rgb();
+							} else {
+								finalColor = chroma.mix(farthestRGBGrayscale, closestRGBGrayscale, highDimRatio, 'hsl').rgb();
+							}
 							break;
 					}
 
@@ -1697,7 +1789,6 @@
 			}
 		}
 
-		console.timeEnd("updatePtsColor")
 	}
 
 	// Update dropdown
