@@ -327,7 +327,7 @@
 			'annotationSearch': ""
 		};
 
-		gui.add(GUIparam, 'selectData', datasetList).name('Select Dataset').onChange(function(){
+		gui.add(GUIparam, 'selectData', datasetList).name('Dataset').onChange(function(){
 			dataDirectory = GUIparam.selectData;
 			automaticLoadData(dataDirectory);
 
@@ -335,7 +335,9 @@
 
 		var colorModeList = ["slime connect", "part of speech", "high dimension"];
 
-		gui.add(GUIparam, 'colorMode', colorModeList).name('Color Mode').onChange(function(){
+		const visualFolder = gui.addFolder('Visual Parameters')
+
+		visualFolder.add(GUIparam, 'colorMode', colorModeList).name('Color Mode').onChange(function(){
 			colorMode = GUIparam.colorMode;
 			updatePtsColor();
 		})
@@ -343,55 +345,55 @@
 		var filterPOSList = ['None', 'NOUN+VERB+ADJ+ADV', 'ADV', 'NUM', 'ADJ', 'NOUN', 'VERB', 'ADP', 'AUX', 'PROPN',
 			'DET', 'PUNCT', 'PRON', 'CCONJ', 'X', 'PART', 'INTJ', 'SYM']
 
-		gui.add(GUIparam, 'filterPOS', filterPOSList).name('Filter POS').onChange(function(){
+		visualFolder.add(GUIparam, 'filterPOS', filterPOSList).name('Pick Subclass').onChange(function(){
 			filterPOS = GUIparam.filterPOS;
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'colorRatioPow', 0.05, 1, 0.005).name('Color Gradient').onChange(function(){
+		visualFolder.add(GUIparam, 'colorRatioPow', 0.05, 1, 0.005).name('Color Gradient').onChange(function(){
 			colorRatioPow = GUIparam.colorRatioPow;
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'nodeWeightThreshold', 0, 1).name('Lowest Weight').onChange(function(){
-			nodeWeightThreshold = GUIparam.nodeWeightThreshold;
-			updatePtsColor();
-		})
+		// gui.add(GUIparam, 'nodeWeightThreshold', 0, 1).name('Lowest Weight').onChange(function(){
+		// 	nodeWeightThreshold = GUIparam.nodeWeightThreshold;
+		// 	updatePtsColor();
+		// })
 
-		gui.add(GUIparam, 'particleConnectionWeight', 0, 100000).name('Lowest Connect').onChange(function(){
+		gui.add(GUIparam, 'particleConnectionWeight', 0, 100000).name('Filter LD').onChange(function(){
 			connWeightThreshold = GUIparam.particleConnectionWeight;
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'particleHighDimConnectionWeight', 0, 100000).name('Lowest HD Connect').onChange(function(){
+		gui.add(GUIparam, 'particleHighDimConnectionWeight', 0, 100000).name('Filter HD').onChange(function(){
 			connWeightHighDimThreshold = GUIparam.particleHighDimConnectionWeight;
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'opacityTuning', 0, 1).name('Opacity Fading').onChange(function(){
+		visualFolder.add(GUIparam, 'opacityTuning', 0, 1).name('Opacity').onChange(function(){
 			opacityTuning = GUIparam.opacityTuning;
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'shiftDim').name('Dim When Shift').onChange(function(){
+		visualFolder.add(GUIparam, 'shiftDim').name('Dim When Shift').onChange(function(){
 			shiftDim = GUIparam.shiftDim;
 		})
 
-		gui.add(GUIparam, 'displayMultiToken').name('Show More Tokens').onChange(function(){
+		gui.add(GUIparam, 'displayMultiToken').name('Fuzzy Cursor').onChange(function(){
 			displayMultiToken = GUIparam.displayMultiToken;
 		})
 
-		gui.add(GUIparam, 'alwaysAnchor').name('Keep Anchor Displayed').onChange(function(){
-			alwaysAnchor = GUIparam.alwaysAnchor;
-			updatePtsColor();
-		})
+		// gui.add(GUIparam, 'alwaysAnchor').name('Keep Anchor Displayed').onChange(function(){
+		// 	alwaysAnchor = GUIparam.alwaysAnchor;
+		// 	updatePtsColor();
+		// })
 
 		gui.add(GUIparam, 'showAnnotations').name('ShowAnnotations').onChange(function(showAnnotationsBool){
 			showAnnotations = showAnnotationsBool;
 			updatePtsColor();
 		})
 
-		gui.add(GUIparam, 'grayScale').name('grayScale').onChange(function(usergrayScaleBool){
+		visualFolder.add(GUIparam, 'grayScale').name('grayScale').onChange(function(usergrayScaleBool){
 			grayScaleBool = usergrayScaleBool;
 			updatePtsColor();
 		})
