@@ -691,15 +691,15 @@
 		var canvasHalfHeight = renderer.domElement.offsetHeight / 2;
 
 		var tooltipPosition = objectPosition.clone().project(camera);
-		tooltipPosition.x = (tooltipPosition.x * canvasHalfWidth) + canvasHalfWidth + renderer.domElement.offsetLeft;
-		tooltipPosition.y = -(tooltipPosition.y * canvasHalfHeight) + canvasHalfHeight + renderer.domElement.offsetTop;
+		tooltipPosition.x = (tooltipPosition.x * canvasHalfWidth) + canvasHalfWidth;
+		tooltipPosition.y = -(tooltipPosition.y * canvasHalfHeight) + canvasHalfHeight;
 
 		var tooltipWidth = divElement[0].offsetWidth;
 		var tooltipHeight = divElement[0].offsetHeight;
 
 		divElement.css({
-			left: `${tooltipPosition.x + tooltipWidth / 16}px`,
-			top: `${tooltipPosition.y + tooltipHeight / 16}px`
+			left: `${tooltipPosition.x + tooltipWidth / 16 - tooltipWidth/2}px`,
+			top: `${tooltipPosition.y + tooltipHeight / 16 + 30}px`
 		});
 
 		divElement.text(text);
