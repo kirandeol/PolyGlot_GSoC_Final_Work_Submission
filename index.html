@@ -985,11 +985,12 @@
 								});
 							});
 
+							const annotationsMainFolder = gui.addFolder('Annotations');
 							// Add annotation
 							var obj1 = { addAnnotations:function() {
 									switch(numAnnotations) {
 										case 0:
-											const newAnnotationFolder1 = gui.addFolder('New Annotation 1');
+											const newAnnotationFolder1 = annotationsMainFolder.addFolder('New Annotation 1');
 											newAnnotationFolder1.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder1.name = newAnnotationName;
 												annotationOneName[0] = newAnnotationName;
@@ -1058,7 +1059,7 @@
 											numAnnotations += 1;
 											break;
 										case 1:
-											const newAnnotationFolder2 = gui.addFolder('New Annotation 2');
+											const newAnnotationFolder2 = annotationsMainFolder.addFolder('New Annotation 2');
 											newAnnotationFolder2.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder2.name = newAnnotationName;
 												annotationTwoName[0] = newAnnotationName;
@@ -1114,7 +1115,7 @@
 											numAnnotations += 1;
 											break;
 										case 2:
-											const newAnnotationFolder3 = gui.addFolder('New Annotation 3');
+											const newAnnotationFolder3 = annotationsMainFolder.addFolder('New Annotation 3');
 											newAnnotationFolder3.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder3.name = newAnnotationName;
 												annotationThreeName[0] = newAnnotationName;
@@ -1169,7 +1170,7 @@
 											numAnnotations += 1;
 											break;
 										case 3:
-											const newAnnotationFolder4 = gui.addFolder('New Annotation 4');
+											const newAnnotationFolder4 = annotationsMainFolder.addFolder('New Annotation 4');
 											newAnnotationFolder4.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder4.name = newAnnotationName;
 												annotationFourName[0] = newAnnotationName;
@@ -1224,7 +1225,7 @@
 											numAnnotations += 1;
 											break;
 										case 4:
-											const newAnnotationFolder5 = gui.addFolder('New Annotation 5');
+											const newAnnotationFolder5 = annotationsMainFolder.addFolder('New Annotation 5');
 											newAnnotationFolder5.add(newAnnotationParam, 'annotationName').name('Annotation Name').onFinishChange(function(newAnnotationName){
 												newAnnotationFolder5.name = newAnnotationName;
 												annotationFiveName[0] = newAnnotationName;
@@ -1284,7 +1285,7 @@
 											break;
 									}
 								}};
-							gui.add(obj1,'addAnnotations').name("Add Annotation");
+							annotationsMainFolder.add(obj1,'addAnnotations').name("Add Annotation");
 
 							var exportAnnot = {exportAnn:function() {
 									var annotationOnePointsString = annotationOnePoints.join();
@@ -1305,7 +1306,7 @@
 									var encodedUri = encodeURI(csvContent);
 									window.open(encodedUri);
 								}};
-							gui.add(exportAnnot, 'exportAnn').name("ExportAnnotations");
+							annotationsMainFolder.add(exportAnnot, 'exportAnn').name("ExportAnnotations");
 
 							/*  CHOOSING DATA TRACE, CURRENTLY NOT USED
                             dataTraceController = gui.add(GUIparam, 'selectTraceDataset', datasetList).name('Select Trace Dataset').onChange(function(){
