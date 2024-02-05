@@ -147,7 +147,7 @@
 	var anchorList = ["0: also_ADV", "918: right_NOUN"];
 	var searchAnchorList = ["0: also_ADV", "918: right_NOUN"];
 	var searchZoomList = ["0: also_ADV", "918: right_NOUN"];
-	var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/"];
+	var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/plankton/"];
 
 	//var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/Lautonomy_Data/"];
 	let traceDataDirectory = "data/global_1/"; // CONTROLS WHICH DATASET TO LOAD WITH!!
@@ -302,9 +302,6 @@
 
 		container.appendChild( renderer.domElement );
 
-		//const axesHelper = new THREE.AxesHelper( 500 );
-		//scene.add( axesHelper );
-
 		// REQUIRED - GUI Setup
 
 		gui = new GUI();
@@ -345,6 +342,10 @@
 			scene.remove(scene.children[0]);
 			group = new THREE.Group();
 			scene.add(group);
+			if (dataDirectory === "data/plankton/") {
+				const axesHelper = new THREE.AxesHelper( 500 );
+				scene.add( axesHelper );
+			}
 			initializeData();
 			automaticLoadData(dataDirectory);
 
@@ -948,7 +949,7 @@
 						// This exists because file reading is async
 						if (chooseAnchorController) {
 							var innerHTMLStr = "";
-							for(var i = 0; i < anchorList.length; i++){
+							for(var i = 0; i < anchorList.slice(0, 100).length; i++){
 								var str = "<option value='" + anchorList[i] + "'>" + anchorList[i] + "</option>";
 								innerHTMLStr += str;
 							}
@@ -956,7 +957,7 @@
 							if (innerHTMLStr != "") chooseAnchorController.domElement.children[0].innerHTML = innerHTMLStr;
 
 							var innerHTMLStrZoom = "";
-							for(var i = 0; i < allPoints.length; i++){
+							for(var i = 0; i < allPoints.slice(0, 100).length; i++){
 								var str = "<option value='" + allPoints[i] + "'>" + allPoints[i] + "</option>";
 								innerHTMLStrZoom += str;
 							}
@@ -968,14 +969,14 @@
 
 							// Search bar
 							searchFolder.add(GUIparam, "textField").name('Search Term').onFinishChange(function (searchedTerm) {
-								const anchorResults = fuzzysort.go(searchedTerm, anchorList, {limit: 200, all: true, allowTypo: true});
-								const zoomResults = fuzzysort.go(searchedTerm, allPoints, {limit: 200, all: true, allowTypo: true});
+								const anchorResults = fuzzysort.go(searchedTerm, anchorList, {limit: 100, all: true, allowTypo: true});
+								const zoomResults = fuzzysort.go(searchedTerm, allPoints, {limit: 100, all: true, allowTypo: true});
 								console.log("ZOOM SEARCH", allPoints);
 								searchAnchorList = anchorResults.map(x => x.target);
 								searchZoomList = zoomResults.map(x => x.target);
 								if (searchedTerm === "") {
 									searchAnchorList = anchorList;
-									searchZoomList = allPoints.slice(0,200);
+									searchZoomList = allPoints.slice(0,100);
 								}
 								searchZoomList.unshift("-- RESULTS --");
 								searchAnchorList.unshift("-- RESULTS --");
@@ -986,7 +987,7 @@
 
 							// Jump to point dropdown
 
-							zoomController = searchFolder.add(GUIparam, 'zoomPoint', allPoints.slice(0, 200)).name('Zoom to Point').onChange(function(term){
+							zoomController = searchFolder.add(GUIparam, 'zoomPoint', allPoints.slice(0, 100)).name('Zoom to Point').onChange(function(term){
 								var zoomTerm = term.split(':')[0];
 								zoomedTerm = zoomTerm;
 								console.log("ZOOM CON", allPoints);
@@ -1004,7 +1005,7 @@
 							});
 
 							// Change anchor dropdown
-							chooseAnchorController = searchFolder.add(GUIparam, 'selectAnchor', anchorList).name('Select Anchor').onChange(function(){
+							chooseAnchorController = searchFolder.add(GUIparam, 'selectAnchor', anchorList.slice(0, 100)).name('Select Anchor').onChange(function(){
 								var id = parseInt(GUIparam.selectAnchor.split(' ')[0]);
 
 								originAttr = id;
