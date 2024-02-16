@@ -109,7 +109,7 @@
 	const urlParams = new URLSearchParams(window.location.search);
 	let ifMusic = urlParams.get('music') == 'true';
 
-	let dataDirectory = "data/global_1/";
+	let dataDirectory = "data/plankton/";
 	let firstFile = true; // We want this to be false after loading the first file so that the points dont shift around
 
 	// ** Set of variables from deposit_reader.py, important for coordiante conversion **
@@ -666,16 +666,13 @@
 			raycasterMultiTokens.setFromCamera( mouse, camera );
 			var intersectsMultiTokens = raycasterMultiTokens.intersectObject(pointCloud);
 		}
-
 		if (annotationOn !== -1) {
-
 			raycasterAnnotations.setFromCamera( mouse, camera );
 			var annotationIntersects = raycasterAnnotations.intersectObject(pointCloud);
 		}
 
 		raycaster.setFromCamera( mouse, camera );
 		var intersects = raycaster.intersectObject(pointCloud);
-
 
 		// if there is any point being intersected at the moment
 		if (intersects.length > 0){
@@ -699,13 +696,13 @@
 			}
 
 			if ( tobeINTERSECTED && INTERSECTED != intersects[0].index ) {
+				// SWAP two RGB colors
 				particleColor[INTERSECTED * 3] = originalRGB[0];
 				particleColor[INTERSECTED * 3 + 1] = originalRGB[1];
 				particleColor[INTERSECTED * 3 + 2] = originalRGB[2];
 				particleOpacity[INTERSECTED] = originalRGB[3];
 
 				INTERSECTED = tobeINTERSECTED;
-
 				originalRGB = [particleColor[INTERSECTED * 3],
 					particleColor[INTERSECTED * 3 + 1],
 					particleColor[INTERSECTED * 3 + 2],
@@ -716,15 +713,13 @@
 				particleColor[INTERSECTED * 3 + 2] = 1;
 				particleOpacity[INTERSECTED] = 1;
 
-				var particle_text = particleData[INTERSECTED].name;
-				var particle_pos = new THREE.Vector3(particlePositions[INTERSECTED*3],
-						particlePositions[INTERSECTED*3 + 1],
-						particlePositions[INTERSECTED*3 + 2]);
+				// var particle_text = particleData[INTERSECTED].name;
 
 				// A hacky solution to display multiple tokens
-				var particle_mesg = "";
+				let particle_mesg = "";
 
-				if (displayMultiToken){
+				// path for multiple selection from a single skewer
+				/* if (displayMultiToken){
 					for (var i = 0; i < intersectsMultiTokens.length; i++) {
 						if (shiftPressed && availableIds[particleData[intersectsMultiTokens[i].index].id]
 								|| !shiftPressed){
@@ -737,11 +732,22 @@
 						}
 					}
 				}
-				else {
-					particle_mesg = intersects[i].index.toString() + ": " + particle_text;
-				}
+				else { */
+				// single token payload
+				// particle_mesg = intersects[i].index.toString() + ": " + particleData[i].name;
+
+				let w = intersects[i], // {distance: Float, distanceToRay: Float, face: {}, index: Int, object: ThreeJS, point: {x,y,z} }
+					u = particleData[w.index] // {id: Int, name: String, ...}
+				// particle_mesg = intersects[i].index.toString() + ": " + particleData[i].name;
+
+				particle_mesg = Object.entries(u)
+								.map(([k,v]) => ['id'].includes(k) ? '' : `${k}: ${v}`).filter(s => s).join('\n')
+
 				expand = false;
-				showTooltip(particle_pos, particle_mesg);
+				showTooltip(new THREE.Vector3(particlePositions[i*3],
+						particlePositions[i*3 + 1],
+						particlePositions[i*3 + 2]),
+						particle_mesg);
 
 
 				// Check if annotation mode is on and add points to respective annotation group
@@ -1494,7 +1500,7 @@
 
 			availableIds[lnspl[0]/1] = lnspl.slice(1).join(' ');
 		}
-
+		// console.log(availableIds)
 	}
 
 	// LOADING FULL DATA
@@ -1503,8 +1509,10 @@
 		particleData = [];
 
 		// ACHTUNG: THIS IS LIMITING THE NUMBER OF NODES
-		if (maxParticleCount > 1000000)
+		if (maxParticleCount > 1000000) {
+			console.log("WARN: More than 1,000,000 points in dataset. Truncating output.")
 			maxParticleCount = 1000000;
+		}
 
 		const pMaterial = new THREE.ShaderMaterial( {
 			uniforms: {
@@ -1536,8 +1544,8 @@
 
 		for ( let i = 0; i < maxParticleCount; i ++ ) {
 			var wordContent = lines[i * 2];
-
 			var wordGraphAttribute = lines[i * 2 + 1];
+
 			const splitOn = new RegExp(/\s+/);
 			wordGraphAttribute = wordGraphAttribute.split(splitOn);
 			// changed the split to be on ANY amount of whitespace (ie., tabs are fine too)
@@ -1576,8 +1584,6 @@
 				}
 			}
 		}
-
-
 		particles.setAttribute( 'position', new THREE.BufferAttribute( particlePositions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
 		particles.setAttribute( 'color', new THREE.BufferAttribute( particleColor, 3 ).setUsage( THREE.DynamicDrawUsage ) );
 		particles.setAttribute( 'alpha', new THREE.BufferAttribute( particleOpacity, 1 ).setUsage( THREE.DynamicDrawUsage ) );
@@ -1591,6 +1597,30 @@
 		allPoints = particleData.map(x => x.id + ": " + x.name);
 
 		const sizeAttribute = pointCloud.geometry.getAttribute("size");
+		
+		const schema = ["lat", "lon", "t", "s", "H1", "H2", "H3"]
+		// FIXME: column names should be loaded from a schema file, since they're broken out to separate files
+
+		console.log(particleData)
+		schema.forEach((col) => {
+			const columnPath = 'data/plankton/color_map/' + col +".csv" // BRITTLE
+			getFileObject(columnPath, function (colorMapData) {
+				let reader = new FileReader();
+				reader.onload = (e) => {
+					const file = e.target.result;
+					let lines = file.split(/\r\n|\n/);
+
+					lines.forEach((u) => {
+						if (u) { // swallow blank lines
+							let lineData = u.split(',')
+							const id = +lineData[0];
+							particleData[id][col] = +lineData[1]; // VERIFY: ingest one numeric value
+						}
+					})
+				}
+				reader.readAsText(colorMapData);
+			});
+		})
 	}
 
 	// LOADING ANCHOR POINT
