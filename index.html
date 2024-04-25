@@ -32,6 +32,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/fuzzysort@2.0.4/fuzzysort.min.js"></script>
 	<script src="./chroma.js-master/chroma.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
 	<script type="x-shader/x-fragment" id="vertexshader-token">
             attribute float alpha;
             uniform float scale;
@@ -66,16 +67,47 @@
                 gl_FragColor = vec4(gcolor -  distance / 40.0, galpha);
             }
         </script>
+		<script type="x-shader/x-fragment" id="vertexshader-parcoords">
+			precision mediump float;
+			attribute vec2 xy; 
+			attribute vec3 vColor;
+			varying vec2 myUV;
+			varying vec3 color;
+		
+			void main () {
+			  myUV = xy;
+			  color = vColor/255.;
+			  gl_Position = vec4(xy, 0., 1.);
+			}
+			</script>
+		<script type="x-shader/x-fragment" id="fragmentshader-parcoords">
+			precision highp float; // mediump
+			varying vec2 uv;
+			varying vec3 color;
+		
+			void main () {
+			  gl_FragColor = vec4(color, .05);
+			}
+			</script>
 </head>
 <body>
-<div id="tooltip"></div>
 
-<div id="container"></div>
+<div style="display: grid; grid-template-columns: 1fr 1fr;">
+	<div id="container" style="width: 700px; height: 700px;"></div>
+	<div>
+		<div id="reserved-datgui" style="width: 400px; height: 300px;"></div>
+		<div id="parallel" style="width: 400px; height: 400px; float: right;"></div>
+	</div>
+</div>
+<canvas id="canvas" style="position: fixed; left: 0; top: 0;" ></canvas>
+<div id="tooltip"></div>
 
 <script type="module">
 	import * as THREE from './build/three.module.js';
 	import { GUI } from './jsm/libs/dat.gui.module.js';
 	import { OrbitControls } from './jsm/controls/OrbitControls.js';
+	import { elementStack, makeParCoordsInfo } from './parallelCoords.js';
+	import { initParallelCoords, renderParallelCoords } from "./threeHelper.js";
 
 	// #######################################################
 	//      COPY N PASTE FROM THE WEB
@@ -116,7 +148,9 @@
 	let SCALING_FACTOR_SLIME = 10;
 	let GRID_MIN = [0,0,0] // [-115.75681, -101.80056, -126.10199]; // grid center - size / 2 given in metadata
 
-	let group
+
+	let canvas;
+	let group;
 	let container, stat;
 	let camera, scene, renderer;
 	let pointCloud;
@@ -149,7 +183,7 @@
 	var searchZoomList = ["0: also_ADV", "918: right_NOUN"];
 	var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/plankton/"];
 
-	var GLOBAL_SCHEMA = ["lat", "lon", "t", "s", "H1", "H2", "H3"]
+	var GLOBAL_SCHEMA = ["lat", "lon", "t", "s", "H1", "H2", "H3"] // Cludge - should load columns from CSV
 
 	//var datasetList = ["data/global_1/", "data/global_2/", "data/music_demo/", "data/Lautonomy_Data/"];
 	let traceDataDirectory = "data/plankton/"; // DUPE: CONTROLS WHICH DATASET TO LOAD WITH!! but so does dataDirectory
@@ -184,9 +218,10 @@
 
 	let availableIds = {}; // List of IDs available, each entry is in format [id, info]
 
+	let selectionWidgetInfo;
+
 	// ===================================
 	// =========VARIABLE FOR NEW THINGS===
-	// ===================================
 	// ===================================
 
 	let shiftPressed = false;
@@ -271,8 +306,28 @@
 	animate();
 
 	function init(){
+		// DOM setup
+		canvas = document.getElementById( 'canvas' );
 		container = document.getElementById( 'container' );
 
+		renderer = new THREE.WebGLRenderer( {canvas } );
+		renderer.setSize(window.innerWidth, window.innerHeight);
+
+		// container.appendChild( renderer.domElement ); // disabled - canvas already prepped
+		selectionWidgetInfo = initParallelCoords(); // setupScene2();
+
+		/* let layers = elementStack(this, {
+			width: 928,
+			height: 464,
+			layers: {
+				regl: ({ width, height }) => makeREGL(width, height),
+				//axes: ({ width, height }) => makeBrushableAxes(width, height)
+			}
+		})
+		console.log(layers)
+		console.log(layers.value) */
+
+		// interaction
 		raycaster = new THREE.Raycaster();
 		raycaster.params.Points.threshold = 0.7;
 		raycasterMultiTokens = new THREE.Raycaster();
@@ -286,12 +341,15 @@
 		scene = new THREE.Scene();
 		camera = new THREE.PerspectiveCamera(45,
 				window.innerWidth/window.innerHeight, 5, 4000);
-		camera.position.z = 800;
-		camera.near = 5;
-		// CHANGED NEAR PARAM TO MAKE RAY CASTING SMOOTHER DURING ZOOM
+		
+		camera.position.set(400, 200, 800); // camera.position.z = 800;
+		camera.near = 5; // CHANGED NEAR PARAM TO MAKE RAY CASTING SMOOTHER DURING ZOOM
+		camera.lookAt(400, 200, 0);
 
 		// REQUIRED - For camera control
-		controls = new OrbitControls( camera, container );
+		controls = new OrbitControls( camera, canvas ); // camera, container
+		controls.target.set(400, 200, 0);
+		controls.update();
 		//controls.minDistance = 0;
 
 		// REQUIRED - group to add everything in
@@ -302,13 +360,6 @@
 		// REQUIRED - add meshes, add both point and edge (Should be reading data)
 		initializeData();
 		automaticLoadData(dataDirectory);
-
-		// REQUIRED
-		renderer = new THREE.WebGLRenderer();
-		renderer.setSize(window.innerWidth, window.innerHeight);
-		document.body.appendChild(renderer.domElement);
-
-		container.appendChild( renderer.domElement );
 
 		// REQUIRED - GUI Setup
 
@@ -553,9 +604,12 @@
 
 	function onDocumentMouseMove(event) {
 		event.preventDefault();
+		let u = document.getElementById('container') // get dimensions from scatter plot viewport
+		let w = u.clientWidth, // window.innerWidth
+			h = u.clientHeight // window.innerHeight
 
-		mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-		mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+		mouse.x = (event.clientX / w) * 2 - 1;
+		mouse.y = -(event.clientY / h) * 2 + 1;
 	}
 
 	function onDocumentClick(event) {
@@ -676,13 +730,25 @@
 	}
 
 	function render() {
+		// const time = Date.now() * 0.001;
+		
+		renderer.setScissorTest( false );
+		renderer.clear( true, true );
+		renderer.setScissorTest( true );
 
-		const time = Date.now() * 0.001;
+		raycastMouse(); // FIXME: use the correct relative position
 
-		raycastMouse();
+		const {left, right, top, bottom, width, height} =
+			document.getElementById('container').getBoundingClientRect();
+		const positiveYUpBottom = renderer.domElement.clientHeight - bottom;
 
+		// we'd update the camera projection matrix here if aspect ratio had changed
+    	renderer.setScissor(left, positiveYUpBottom, width, height);
+		renderer.setViewport(left, positiveYUpBottom, width, height);
 		renderer.render( scene, camera );
 
+		// now render the parallel coordinates canvas
+		renderParallelCoords(renderer, selectionWidgetInfo);
 	}
 
 	function raycastMouse() {
@@ -1630,26 +1696,29 @@
 		const schema = GLOBAL_SCHEMA
 		// FIXME: column names should be loaded from a schema file, since they're broken out to separate files
 
-		console.log(particleData)
-		schema.forEach((col) => {
-			const columnPath = 'data/plankton/color_map/' + col +".csv" // BRITTLE
-			getFileObject(columnPath, function (colorMapData) {
-				let reader = new FileReader();
-				reader.onload = (e) => {
-					const file = e.target.result;
-					let lines = file.split(/\r\n|\n/);
+		if (particleData.length !== 0) {
+			schema.forEach((col) => {
+				const columnPath = 'data/plankton/color_map/' + col +".csv" // BRITTLE
+				getFileObject(columnPath, function (colorMapData) {
+					let reader = new FileReader();
+					reader.onload = (e) => {
+						const file = e.target.result;
+						let lines = file.split(/\r\n|\n/);
 
-					lines.forEach((u) => {
-						if (u) { // swallow blank lines
-							let lineData = u.split(',')
-							const id = +lineData[0];
-							particleData[id][col] = +lineData[1]; // VERIFY: ingest one numeric value
-						}
-					})
-				}
-				reader.readAsText(colorMapData);
-			});
-		})
+						lines.forEach((u) => {
+							if (u) { // swallow blank lines
+								let lineData = u.split(',')
+								const id = +lineData[0];
+								particleData[id][col] = +lineData[1]; // VERIFY: ingest one numeric value
+							}
+						})
+					}
+					reader.readAsText(colorMapData);
+				});
+			})
+		} else {
+			console.log("loadFullData() could not write to uninitialized particleData. retrying")
+		}
 	}
 
 	// LOADING ANCHOR POINT
