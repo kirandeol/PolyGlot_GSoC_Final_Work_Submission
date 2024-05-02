@@ -20,55 +20,6 @@
     */
 
 
-export function makeParCoordsInfo (data, keys, colorKey, width = 928, height = 464) {  
-    const ret = {}
-
-    const x = new Map(
-      Array.from(keys, (key) => [
-        key,
-        d3.scaleLinear(
-          d3.extent(data, (d) => d[key]),
-          [-1, 1] //[marginLeft, width - marginRight]
-        )
-      ])
-    );
-    const y = d3.scalePoint(keys, [-1, 1]); // [marginTop, height - marginBottom]);
-    const color = d3.scaleSequential(x.get(colorKey).domain(), (t) =>
-      d3.interpolateRdBu(1 - t)
-    );
-  
-    const keysStrip = [
-      keys[0],
-      ...keys
-        .slice(1, -1)
-        .map((u) => [u, u])
-        .flat(),
-      keys.slice(-1)[0]
-    ];
-  
-    function rep(u, k) {
-      return d3.range(k).map((_) => u);
-    }
-    Object.assign(ret, {
-      points: data
-        .map((u) => keysStrip.map((k) => [x.get(k)(u[k]), y(k)]))
-        .flat(),
-      values: data
-        .map((u) =>
-          rep(
-            (color(u[colorKey]) || "rgb(0,0,0)")
-              .slice(4, -1)
-              .split(", ")
-              .map((v) => +v),
-            keys.length * 2 - 2
-          )
-        )
-        .flat(1),
-      scales: { color }
-    });
-    return ret;
-  }
-
 
 // library constructors from Ricky Reusser's regl canvas notebooks
 

@@ -67,26 +67,21 @@
                 gl_FragColor = vec4(gcolor -  distance / 40.0, galpha);
             }
         </script>
+
 		<script type="x-shader/x-fragment" id="vertexshader-parcoords">
-			precision mediump float;
-			attribute vec2 xy; 
-			attribute vec3 vColor;
-			varying vec2 myUV;
-			varying vec3 color;
+			varying vec3 gColor;
 		
 			void main () {
-			  myUV = xy;
-			  color = vColor/255.;
-			  gl_Position = vec4(xy, 0., 1.);
+			  gColor = color;
+			  gl_Position = vec4(position, 1.);
 			}
 			</script>
 		<script type="x-shader/x-fragment" id="fragmentshader-parcoords">
-			precision highp float; // mediump
-			varying vec2 uv;
-			varying vec3 color;
+			varying vec2 myUV;
+			varying vec3 gColor;
 		
 			void main () {
-			  gl_FragColor = vec4(color, .05);
+			  gl_FragColor = vec4(gColor, .05);
 			}
 			</script>
 </head>
@@ -102,12 +97,13 @@
 <canvas id="canvas" style="position: fixed; left: 0; top: 0;" ></canvas>
 <div id="tooltip"></div>
 
+<script src="d3.min.js"></script>
 <script type="module">
 	import * as THREE from './build/three.module.js';
 	import { GUI } from './jsm/libs/dat.gui.module.js';
 	import { OrbitControls } from './jsm/controls/OrbitControls.js';
-	import { elementStack, makeParCoordsInfo } from './parallelCoords.js';
-	import { initParallelCoords, renderParallelCoords } from "./threeHelper.js";
+	import { elementStack } from './parallelCoords.js';
+	import { makeScene, renderParallelCoords } from "./threeHelper.js";
 
 	// #######################################################
 	//      COPY N PASTE FROM THE WEB
@@ -154,6 +150,7 @@
 	let container, stat;
 	let camera, scene, renderer;
 	let pointCloud;
+	let skein;
 	let controls;
 
 	let gui;
@@ -199,6 +196,7 @@
 
 	var maxParticleCount = 1000;
 	let particleData = [];
+
 	let particles;
 	let particleConnectionWeight;
 	let particleHighDimConnectionWeight;
@@ -208,7 +206,14 @@
 	let particleColor;
 	let particleOpacity;
 	let particleSize;
+
+	let strings;
+	let stringPositions;
+	let stringColor;
+	// let stringInfo = {points: null, values: null, scales: null};
+
 	let allPoints;
+	
 	let topEdgeWeight = -1;
 	let topNodeWeight = -1;
 	let topColorWeight = -1;
@@ -314,7 +319,7 @@
 		renderer.setSize(window.innerWidth, window.innerHeight);
 
 		// container.appendChild( renderer.domElement ); // disabled - canvas already prepped
-		selectionWidgetInfo = initParallelCoords(); // setupScene2();
+		selectionWidgetInfo = makeScene(document.querySelector('#parallel')); // initParallelCoords(); // setupScene2();
 
 		/* let layers = elementStack(this, {
 			width: 928,
@@ -724,8 +729,11 @@
 		pointCloud.geometry.attributes.color.needsUpdate = true;
 		pointCloud.geometry.attributes.alpha.needsUpdate = true;
 		pointCloud.geometry.attributes.size.needsUpdate = true;
-		requestAnimationFrame( animate );
 
+		skein.geometry.attributes.position.needsUpdate = true;
+		skein.geometry.attributes.color.needsUpdate = true;
+
+		requestAnimationFrame( animate );
 		render();
 	}
 
@@ -1595,10 +1603,12 @@
 		// console.log(availableIds)
 	}
 
+
 	// LOADING FULL DATA
 	function loadFullData(lines) {
 		maxParticleCount = lines.length / 2;
 		particleData = [];
+		particleData.length = 0;
 
 		// ACHTUNG: THIS IS LIMITING THE NUMBER OF NODES
 		if (maxParticleCount > 1000000) {
@@ -1606,33 +1616,8 @@
 			maxParticleCount = 1000000;
 		}
 
-		const pMaterial = new THREE.ShaderMaterial( {
-			uniforms: {
-				scale: {type: 'f', value: window.innerHeight / 2}
-			},
-
-			vertexShader: document.getElementById( 'vertexshader-token' ).textContent,
-			fragmentShader: document.getElementById( 'fragmentshader-token' ).textContent,
-
-			vertexColors:   true,
-			blending:       THREE.CustomBlending,
-			blendSrc:       THREE.SrcAlphaFactor,
-			blendDst:       THREE.DstAlphaFactor,
-			depthTest:      false,
-			depthWrite:     true,
-			transparent:    true
-		} );
-
-		particles = new THREE.BufferGeometry();
-		particlePositions = new Float32Array( maxParticleCount * 3 );
-		particleWeight = new Float32Array( maxParticleCount);
-		particleColor = new Float32Array( maxParticleCount * 3 );
-		particleOpacity = new Float32Array(maxParticleCount);
-		particleSize = new Float32Array(maxParticleCount).fill(0.75);
-		particleConnectionWeight = new Float32Array( maxParticleCount);
-		particleHighDimConnectionWeight = new Float32Array( maxParticleCount);
-		particleColorMap = new Float32Array( maxParticleCount);
-		particleData.length = 0;
+		const pMaterial = initParticleRenderer(maxParticleCount);
+		const lMaterial = initParCoordsRenderer(maxParticleCount);
 
 		for ( let i = 0; i < maxParticleCount; i ++ ) {
 			var wordContent = lines[i * 2];
@@ -1656,6 +1641,7 @@
 			particleData.push( {
 				id: id,
 				name: wordContent
+				// NOTE: additional columns will be populated later!
 			} );
 
 			// add point weight
@@ -1693,8 +1679,18 @@
 
 		const sizeAttribute = pointCloud.geometry.getAttribute("size");
 		
-		const schema = GLOBAL_SCHEMA
-		// FIXME: column names should be loaded from a schema file, since they're broken out to separate files
+		// create the parallel coordinates plot
+		const schema = GLOBAL_SCHEMA // FIXME: column names should be loaded from a schema file
+
+		strings.setAttribute( 'position', new THREE.BufferAttribute( stringPositions, 3 )
+			.setUsage( THREE.DynamicDrawUsage ) );
+		strings.setAttribute( 'color', new THREE.BufferAttribute( stringColor, 3 )
+			.setUsage( THREE.DynamicDrawUsage ) );
+		makeStringAttributes(particleData) // TODO: encapsulate particle cloud initialization, too
+
+		skein = new THREE.Line( strings, lMaterial )
+		selectionWidgetInfo.scene.add( skein ); // same renderer, different scene and camera
+		
 
 		if (particleData.length !== 0) {
 			schema.forEach((col) => {
@@ -1709,9 +1705,14 @@
 							if (u) { // swallow blank lines
 								let lineData = u.split(',')
 								const id = +lineData[0];
-								particleData[id][col] = +lineData[1]; // VERIFY: ingest one numeric value
+								particleData[id][col] = +lineData[1]; // ingest one numeric column per color_map csv
 							}
 						})
+						const res = makeStringAttributes(particleData)
+						if (res.cleanFlag) {
+							console.log('parallel coordinates initialized')
+							console.log(skein)
+						}
 					}
 					reader.readAsText(colorMapData);
 				});
@@ -1719,6 +1720,141 @@
 		} else {
 			console.log("loadFullData() could not write to uninitialized particleData. retrying")
 		}
+	}
+	
+	// TODO: put this in a module
+	function makeStringAttributes (data, colorKey = 't') {  
+		// this function should be re-run every time the particleData or colorKey is updated
+		const ret = {}
+		const keys = GLOBAL_SCHEMA // CLUDGE - the schema should itself be data-driven 
+
+		// create appropriate scales for the parallel coordinate chart
+		const x = new Map(
+			Array.from(keys, (key) => [
+				key,
+				d3.scaleLinear(
+				d3.extent(data, (d) => d[key]),
+				[-1, 1] //[marginLeft, width - marginRight]
+				)
+			])
+			);
+		const y = d3.scalePoint(keys, [-1,1]); // [marginTop, height - marginBottom]);
+		const color = d3.scaleSequential(x.get(colorKey).domain(), (t) => d3.interpolateRdBu(1 - t) );
+	
+		// duplicate keys like [A, B, B, C] for the GL_LINES primitive
+		const keysStrip = [
+			keys[0],
+			...keys
+				.slice(1, -1)
+				.map((u) => [u, u])
+				.flat(),
+			keys.slice(-1)[0]
+		];
+	
+		// populate the buffers directly
+		const n = keysStrip.length
+		let cleanFlag = true
+
+		data
+			.forEach((u,i) => {
+				// VERIFY: vertices are interpreted like [A B B C C D]
+				const vs = (color(u[colorKey]) || "rgb(0,0,0)").slice(4,-1).split(', ').map(v => +v)
+				keysStrip.forEach((k,j) => {
+					stringPositions[i*n + j*3] = x.get(k)(u[k])
+					stringPositions[i*n + j*3 + 1] = y(k)
+					stringPositions[i*n + j*3 + 2] = 0.
+
+					stringColor[i*n + j*3] = vs[0] / 255.
+					stringColor[i*n + j*3 + 1] = vs[1] / 255.
+					stringColor[i*n + j*3 + 2] = vs[2] / 255.
+
+					if (cleanFlag && u[k] === undefined)
+					  cleanFlag = false // it's okay for positions to have NaN values before all keys are loaded
+				})
+			})
+		if (cleanFlag) {
+			strings.computeBoundingSphere() // throws an error but doesn't break as expected
+			
+			// strings.computeBoundingBox()
+			// strings.center()
+		}
+		
+		/* function rep(u, k) { return d3.range(k).map((_) => u); }
+		Object.assign(ret, {
+			points:  data
+					.map((u) => keysStrip.map((k) => [x.get(k)(u[k]), y(k)]))
+					.flat(),
+			values: data
+				.map((u) =>
+				rep(
+					(color(u[colorKey]) || "rgb(0,0,0)")
+					.slice(4, -1)
+					.split(", ")
+					.map((v) => +v),
+					keys.length * 2 - 2
+				)
+				)
+				.flat(1),
+			scales: { color }
+		}); */
+
+		Object.assign(ret, {points: stringPositions.length, values: stringColor.length, colorScale: color, cleanFlag})
+		return ret;
+	}
+
+	function initParticleRenderer(maxParticleCount) {
+		const pMaterial = new THREE.ShaderMaterial( {
+			uniforms: {
+				scale: {type: 'f', value: window.innerHeight / 2}
+			},
+
+			vertexShader: document.getElementById( 'vertexshader-token' ).textContent,
+			fragmentShader: document.getElementById( 'fragmentshader-token' ).textContent,
+
+			vertexColors:   true,
+			blending:       THREE.CustomBlending,
+			blendSrc:       THREE.SrcAlphaFactor,
+			blendDst:       THREE.DstAlphaFactor,
+			depthTest:      false,
+			depthWrite:     true,
+			opacity:		0.05,
+			transparent:    true
+		} );
+
+		particles = new THREE.BufferGeometry();
+		particlePositions = new Float32Array( maxParticleCount * 3 );
+		particleWeight = new Float32Array( maxParticleCount);
+		particleColor = new Float32Array( maxParticleCount * 3 );
+		particleOpacity = new Float32Array(maxParticleCount);
+		particleSize = new Float32Array(maxParticleCount).fill(0.75);
+		particleConnectionWeight = new Float32Array( maxParticleCount);
+		particleHighDimConnectionWeight = new Float32Array( maxParticleCount);
+		particleColorMap = new Float32Array( maxParticleCount);
+
+		return pMaterial;
+	}
+
+	function initParCoordsRenderer(maxParticleCount) {
+		const pMaterial =  new THREE.LineBasicMaterial( {
+			vertexColors: 	true,
+			blending: 		THREE.CustomBlending,
+			blendSrc:       THREE.SrcAlphaFactor,
+			blendDst:       THREE.OneMinusSrcAlphaFactor,
+			opacity:		0.01,
+			transparent:    true
+		} ) 
+
+		const n = GLOBAL_SCHEMA.length * 2 - 2; // number of vertices to define (note: index to reduce duplicates)
+		strings = new THREE.BufferGeometry();
+		stringPositions = new Float32Array( maxParticleCount * n * 3 );
+		stringColor = new Float32Array( maxParticleCount * n * 3 );
+
+		/* new THREE.ShaderMaterial( {
+			vertexShader: document.getElementById( 'vertexshader-parcoords' ).textContent,
+			fragmentShader: document.getElementById( 'fragmentshader-parcoords' ).textContent,
+
+		} ); */
+		return pMaterial;
 	}
 
 	// LOADING ANCHOR POINT
