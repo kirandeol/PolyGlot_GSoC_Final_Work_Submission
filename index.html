@@ -1689,7 +1689,7 @@
 			.setUsage( THREE.DynamicDrawUsage ) );
 		makeStringAttributes(particleData) // TODO: encapsulate particle cloud initialization, too
 
-		skein = new THREE.Line( strings, lMaterial )
+		skein = new THREE.LineSegments( strings, lMaterial )
 		skein.frustumCulled = false;
 		selectionWidgetInfo.scene.add( skein ); // same renderer, different scene and camera
 
@@ -1763,8 +1763,9 @@
 			.forEach((u,i) => {
 				// we need a fallback color because the colorkey column may not be loaded yet (nondeterministic order)
 				const vs = (color(u[colorKey]) || "rgb(255,255,255)").slice(4,-1).split(', ').map(v => +v)
-				if (i == 78015) console.log(keys.map(k => x.get(k)(u[k])))
-				if (i == 78015) console.log(keysStrip.map((k,j) => i*n + j*3 + 2))
+
+				// if (i == 78015) console.log(keys.map(k => x.get(k)(u[k])))
+				// if (i == 78015) console.log(keysStrip.map((k,j) => i*n + j*3 + 2))
 
 				keysStrip.forEach((k,j) => {
 					stringPositions[i*n*3 + j*3] =  y(k)
