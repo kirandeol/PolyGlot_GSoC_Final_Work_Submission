@@ -73,7 +73,7 @@
 		
 			void main () {
 			  gColor = color;
-			  gl_Position = vec4(position, 1.);
+			  gl_Position = vec4(position * .9, 1.);
 			}
 			</script>
 		<script type="x-shader/x-fragment" id="fragmentshader-parcoords">
@@ -81,7 +81,7 @@
 			varying vec3 gColor;
 		
 			void main () {
-			  gl_FragColor = vec4(gColor, .05);
+			  gl_FragColor = vec4(gColor, .01);
 			}
 			</script>
 </head>
@@ -207,12 +207,12 @@
 	let particleOpacity;
 	let particleSize;
 
+	let allPoints;
+
 	let strings;
 	let stringPositions;
 	let stringColor;
-	// let stringInfo = {points: null, values: null, scales: null};
-
-	let allPoints;
+	let boxHelper;
 	
 	let topEdgeWeight = -1;
 	let topNodeWeight = -1;
@@ -732,6 +732,7 @@
 
 		skein.geometry.attributes.position.needsUpdate = true;
 		skein.geometry.attributes.color.needsUpdate = true;
+		// boxHelper.update();
 
 		requestAnimationFrame( animate );
 		render();
@@ -1689,8 +1690,11 @@
 		makeStringAttributes(particleData) // TODO: encapsulate particle cloud initialization, too
 
 		skein = new THREE.Line( strings, lMaterial )
+		skein.frustumCulled = false;
 		selectionWidgetInfo.scene.add( skein ); // same renderer, different scene and camera
-		
+
+		// boxHelper = new THREE.BoxHelper( skein, 0xffff00 ); // bounding box debugger
+		// selectionWidgetInfo.scene.add( boxHelper );
 
 		if (particleData.length !== 0) {
 			schema.forEach((col) => {
@@ -1757,46 +1761,33 @@
 
 		data
 			.forEach((u,i) => {
-				// VERIFY: vertices are interpreted like [A B B C C D]
-				const vs = (color(u[colorKey]) || "rgb(0,0,0)").slice(4,-1).split(', ').map(v => +v)
-				keysStrip.forEach((k,j) => {
-					stringPositions[i*n + j*3] = x.get(k)(u[k])
-					stringPositions[i*n + j*3 + 1] = y(k)
-					stringPositions[i*n + j*3 + 2] = 0.
+				// we need a fallback color because the colorkey column may not be loaded yet (nondeterministic order)
+				const vs = (color(u[colorKey]) || "rgb(255,255,255)").slice(4,-1).split(', ').map(v => +v)
+				if (i == 78015) console.log(keys.map(k => x.get(k)(u[k])))
+				if (i == 78015) console.log(keysStrip.map((k,j) => i*n + j*3 + 2))
 
-					stringColor[i*n + j*3] = vs[0] / 255.
-					stringColor[i*n + j*3 + 1] = vs[1] / 255.
-					stringColor[i*n + j*3 + 2] = vs[2] / 255.
+				keysStrip.forEach((k,j) => {
+					stringPositions[i*n*3 + j*3] =  y(k)
+					stringPositions[i*n*3 + j*3 + 1] = x.get(k)(u[k])
+					stringPositions[i*n*3 + j*3 + 2] = 0.5
+
+					stringColor[i*n*3 + j*3] = vs[0] / 255.
+					stringColor[i*n*3 + j*3 + 1] = vs[1] / 255.
+					stringColor[i*n*3 + j*3 + 2] = vs[2] / 255.
 
 					if (cleanFlag && u[k] === undefined)
 					  cleanFlag = false // it's okay for positions to have NaN values before all keys are loaded
 				})
 			})
 		if (cleanFlag) {
-			strings.computeBoundingSphere() // throws an error but doesn't break as expected
+			console.log(data.length)
+			console.log(stringPositions.findIndex((pos,i) => i%3 == 2 && pos === 0))
+
+			strings.computeBoundingBox() // throws an error if some vertices are undefined
+			console.log(strings)
 			
-			// strings.computeBoundingBox()
 			// strings.center()
 		}
-		
-		/* function rep(u, k) { return d3.range(k).map((_) => u); }
-		Object.assign(ret, {
-			points:  data
-					.map((u) => keysStrip.map((k) => [x.get(k)(u[k]), y(k)]))
-					.flat(),
-			values: data
-				.map((u) =>
-				rep(
-					(color(u[colorKey]) || "rgb(0,0,0)")
-					.slice(4, -1)
-					.split(", ")
-					.map((v) => +v),
-					keys.length * 2 - 2
-				)
-				)
-				.flat(1),
-			scales: { color }
-		}); */
 
 		Object.assign(ret, {points: stringPositions.length, values: stringColor.length, colorScale: color, cleanFlag})
 		return ret;
@@ -1835,16 +1826,21 @@
 	}
 
 	function initParCoordsRenderer(maxParticleCount) {
-		const pMaterial =  new THREE.LineBasicMaterial( {
+		const pMaterial =  new THREE.ShaderMaterial( {
+			vertexShader: document.getElementById( 'vertexshader-parcoords' ).textContent,
+			fragmentShader: document.getElementById( 'fragmentshader-parcoords' ).textContent,
+
 			vertexColors: 	true,
 			blending: 		THREE.CustomBlending,
 			blendSrc:       THREE.SrcAlphaFactor,
 			blendDst:       THREE.OneMinusSrcAlphaFactor,
+			depthTest:      false,
+			depthWrite:     true,
 			opacity:		0.01,
 			transparent:    true
 		} ) 
 
-		const n = GLOBAL_SCHEMA.length * 2 - 2; // number of vertices to define (note: index to reduce duplicates)
+		const n = (GLOBAL_SCHEMA.length * 2) - 2; // number of vertices to define (note: index to reduce duplicates)
 		strings = new THREE.BufferGeometry();
 		stringPositions = new Float32Array( maxParticleCount * n * 3 );
 		stringColor = new Float32Array( maxParticleCount * n * 3 );
